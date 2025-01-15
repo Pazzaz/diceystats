@@ -1,8 +1,7 @@
 #![feature(test)]
 use num::{BigRational, FromPrimitive, Num};
-use rand::{Rng, thread_rng};
+use rand::Rng;
 use std::{
-    cmp::max,
     mem,
     ops::{Add, AddAssign, Mul, MulAssign},
 };
@@ -39,9 +38,9 @@ enum NoOp {
 
 impl NoOp {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> usize {
-        match self {
-            &NoOp::Dice(dice) => dice.sample(rng),
-            &NoOp::Const(x) => x,
+        match *self {
+            NoOp::Dice(dice) => dice.sample(rng),
+            NoOp::Const(x) => x,
         }
     }
 }
@@ -67,9 +66,9 @@ enum DoubleOpName {
 
 impl Part {
     fn increased_offset(&self, n: usize) -> Self {
-        match self {
-            &Part::None(x) => Part::None(x),
-            &Part::Double(DoubleOp { name, a, b }) => {
+        match *self {
+            Part::None(x) => Part::None(x),
+            Part::Double(DoubleOp { name, a, b }) => {
                 Part::Double(DoubleOp { name, a: a + n, b: b + n })
             }
         }
@@ -116,8 +115,7 @@ impl<'a, 'b: 'a, T: Num + FromPrimitive + MulAssign<&'a T> + AddAssign + 'b> Dis
     }
 }
 
-impl<T: Num + Clone + AddAssign> Dist<T>
-{
+impl<T: Num + Clone + AddAssign> Dist<T> {
     fn op_inplace<F: Fn(usize, usize) -> usize, G2: Fn(&mut T, &T)>(
         &mut self,
         other: &Dist<T>,
@@ -125,7 +123,7 @@ impl<T: Num + Clone + AddAssign> Dist<T>
         f: F,
         g2: G2,
     ) {
-        debug_assert!(buffer.len() == 0);
+        debug_assert!(buffer.is_empty());
 
         // Assumes f is monotone
         let new_len = f(self.values.len() + 1, other.values.len() + 1) - 1;
@@ -145,7 +143,8 @@ impl<T: Num + Clone + AddAssign> Dist<T>
 }
 
 impl<T: Num + Clone + AddAssign> Dist<T>
-where for<'a> T : AddAssign<&'a T>
+where
+    for<'a> T: AddAssign<&'a T>,
 {
     fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, usize::add, |a, b| {
@@ -155,7 +154,8 @@ where for<'a> T : AddAssign<&'a T>
 }
 
 impl<T: Num + Clone + AddAssign + MulAssign> Dist<T>
-where for<'a> T : MulAssign<&'a T>
+where
+    for<'a> T: MulAssign<&'a T>,
 {
     fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, usize::mul, |a, b| {
@@ -185,10 +185,11 @@ impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T> {
 }
 
 impl<T: Num + Clone + AddAssign> Dist<T>
-where for<'a> T : MulAssign<&'a T>
+where
+    for<'a> T: MulAssign<&'a T>,
 {
     fn repeat(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        debug_assert!(buffer.len() == 0);
+        debug_assert!(buffer.is_empty());
 
         let new_len = (self.values.len() + 1) * (other.values.len() + 1) - 1;
         buffer.resize(new_len, T::zero());
@@ -248,9 +249,11 @@ where for<'a> T : MulAssign<&'a T>
 }
 
 impl DiceExpression {
-    fn evaluate<T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign>
-    (&self) -> Dist<T>
-    where for<'a> T: AddAssign<&'a T> + MulAssign<&'a T>
+    fn evaluate<T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign>(
+        &self,
+    ) -> Dist<T>
+    where
+        for<'a> T: AddAssign<&'a T> + MulAssign<&'a T>,
     {
         enum Stage {
             First,
@@ -374,7 +377,7 @@ impl Add<&Self> for DiceExpression {
     type Output = Self;
 
     fn add(mut self, other: &Self) -> Self {
-        self.op_double_inplace(&other, DoubleOpName::Add);
+        self.op_double_inplace(other, DoubleOpName::Add);
         self
     }
 }
@@ -393,7 +396,7 @@ mod tests {
     use super::*;
     extern crate test;
     use test::Bencher;
-    
+
     #[bench]
     fn eval_30dx30d(b: &mut Bencher) {
         let yep = DiceExpression::new_d(5).multi_add(&DiceExpression::new_d(5));
