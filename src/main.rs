@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign};
+use std::{
+    collections::btree_map::Keys,
+    ops::{Add, AddAssign},
+};
 
 use rand::{Rng, thread_rng};
 
@@ -61,11 +64,9 @@ impl Part {
     fn increased_offset(&self, n: usize) -> Self {
         match self {
             &Part::None(x) => Part::None(x),
-            &Part::Double(DoubleOp { name, a, b }) => Part::Double(DoubleOp {
-                name,
-                a: a + n,
-                b: b + n,
-            }),
+            &Part::Double(DoubleOp { name, a, b }) => {
+                Part::Double(DoubleOp { name, a: a + n, b: b + n })
+            }
         }
     }
 }
@@ -88,38 +89,67 @@ impl<'a> DiceExpressionSlice<'a> {
         DiceExpressionSlice { parts }
     }
 
-    // Recursive :/
     fn evaluate<R: Rng + ?Sized>(&self, rng: &mut R) -> usize {
-        match *self.parts.last().unwrap() {
-            Part::None(NoOp::Dice(dice)) => dice.sample(rng),
-            Part::None(NoOp::Const(n)) => n,
-            Part::Double(DoubleOp { name, a, b }) => {
-                let aa = self.slice(a).evaluate(rng);
-                match name {
-                    DoubleOpName::Add => {
-                        let bb = self.slice(b).evaluate(rng);
-                        aa + bb
-                    }
-                    DoubleOpName::Mul => {
-                        let bb = self.slice(b).evaluate(rng);
-                        aa * bb
-                    }
-                    DoubleOpName::Div => {
-                        let bb = self.slice(b).evaluate(rng);
-                        aa / bb
-                    }
-                    DoubleOpName::Max => {
-                        let bb = self.slice(b).evaluate(rng);
-                        aa.max(bb)
-                    }
-                    DoubleOpName::Min => {
-                        let bb = self.slice(b).evaluate(rng);
-                        aa.min(bb)
-                    }
-                    DoubleOpName::MultiAdd => (0..aa).map(|_| self.slice(b).evaluate(rng)).sum(),
-                }
-            }
+        enum Stage {
+            First,
+            Second,
+            Third(usize),
         }
+        let mut stack: Vec<(Part, Stage)> = vec![(*self.parts.last().unwrap(), Stage::First)];
+        let mut values: Vec<usize> = Vec::new();
+        while let Some(x) = stack.pop() {
+            match x {
+                (Part::None(NoOp::Dice(dice)), _) => values.push(dice.sample(rng)),
+                (Part::None(NoOp::Const(n)), _) => values.push(n),
+                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }), Stage::First) => {
+                    stack.push((
+                        Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }),
+                        Stage::Second,
+                    ));
+                    stack.push((self.parts[a], Stage::First));
+                }
+                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }), Stage::Second) => {
+                    let repetitions = values.pop().unwrap();
+
+                    stack.push((
+                        Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }),
+                        Stage::Third(repetitions),
+                    ));
+                    for _ in 0..repetitions {
+                        stack.push((self.parts[b], Stage::First));
+                    }
+                }
+                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, .. }), Stage::Third(n)) => {
+                    let mut sum = 0;
+                    for _ in 0..n {
+                        sum += values.pop().unwrap();
+                    }
+                    values.push(sum);
+                }
+                (Part::Double(double_op), Stage::First) => {
+                    stack.push((Part::Double(double_op), Stage::Second));
+                    stack.push((self.parts[double_op.a], Stage::First));
+                    stack.push((self.parts[double_op.b], Stage::First));
+                }
+                (Part::Double(DoubleOp { name, .. }), Stage::Second) => {
+                    let bb = values.pop().unwrap();
+                    let aa = values.pop().unwrap();
+                    let n = match name {
+                        DoubleOpName::Add => aa + bb,
+                        DoubleOpName::Mul => aa * bb,
+                        DoubleOpName::Div => aa / bb,
+                        DoubleOpName::Max => aa.max(bb),
+                        DoubleOpName::Min => aa.min(bb),
+                        DoubleOpName::MultiAdd => unreachable!(),
+                    };
+                    values.push(n);
+                }
+                (Part::Double(_), Stage::Third(_)) => {
+                    unreachable!();
+                }
+            };
+        }
+        *values.last().unwrap()
     }
 }
 
@@ -130,15 +160,11 @@ struct DiceExpression {
 
 impl DiceExpression {
     fn slice<'a>(&'a self) -> DiceExpressionSlice<'a> {
-        DiceExpressionSlice {
-            parts: &self.parts[..],
-        }
+        DiceExpressionSlice { parts: &self.parts[..] }
     }
 
     fn new(start: NoOp) -> Self {
-        Self {
-            parts: vec![Part::None(start)],
-        }
+        Self { parts: vec![Part::None(start)] }
     }
 
     fn new_d(n: usize) -> Self {
@@ -150,14 +176,9 @@ impl DiceExpression {
 
         let orig_len = self.parts.len();
         let first_element = orig_len - 1;
-        self.parts
-            .extend(other.parts.iter().map(|x| x.increased_offset(orig_len)));
+        self.parts.extend(other.parts.iter().map(|x| x.increased_offset(orig_len)));
         let second_element = self.parts.len() - 1;
-        self.parts.push(Part::Double(DoubleOp {
-            name,
-            a: first_element,
-            b: second_element,
-        }));
+        self.parts.push(Part::Double(DoubleOp { name, a: first_element, b: second_element }));
     }
 
     fn mul_assign(&mut self, other: &DiceExpression) {
@@ -225,13 +246,13 @@ fn main() {
     let mut rng = thread_rng();
     let yep = DiceExpression::new_d(20)
         .add(&DiceExpression::new_d(10))
-        .add(&DiceExpression::new_d(10))
+        .multi_add(&DiceExpression::new_d(10))
         .add(&DiceExpression::new_d(10))
         .add(&DiceExpression::new_d(10))
         .add(&DiceExpression::new_d(10));
 
     let mut total: f64 = 0.0;
-    let count = 10000;
+    let count = 10;
     for _ in 0..count {
         total += yep.slice().evaluate(&mut rng) as f64;
     }
