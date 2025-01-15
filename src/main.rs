@@ -115,7 +115,8 @@ impl<'a, 'b: 'a, T: Num + FromPrimitive + MulAssign<&'a T> + AddAssign + 'b> Dis
     }
 }
 
-impl<'a, 'b: 'a, T: Num + Clone + AddAssign + 'b> Dist<T> {
+impl<T: Num + Clone + AddAssign> Dist<T>
+{
     fn op_inplace<F: Fn(usize, usize) -> usize, G2: Fn(&mut T, &T)>(
         &mut self,
         other: &Dist<T>,
@@ -161,9 +162,9 @@ impl<T: Num + Clone + AddAssign + MulAssign> Dist<T> {
 impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T> {
     fn max_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, usize::max, |a, b| {
-            let aa = a.clone();
-            let bb = b.clone();
-            *a = if aa < bb { bb } else { aa };
+            if *a < *b {
+                *a = b.clone();
+            }
         });
     }
 }
@@ -171,14 +172,16 @@ impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T> {
 impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T> {
     fn min_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, usize::min, |a, b| {
-            let aa = a.clone();
-            let bb = b.clone();
-            *a = if aa < bb { aa } else { bb };
+            if b < a {
+                *a = b.clone();
+            }
         });
     }
 }
 
-impl<'a, 'b: 'a, T: Num + Clone + MulAssign<&'a T> + AddAssign + 'b> Dist<T> {
+impl<T: Num + Clone + AddAssign> Dist<T>
+where for<'a> T : MulAssign<&'a T>
+{
     fn repeat(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.len() == 0);
 
@@ -211,7 +214,9 @@ impl<'a, 'b: 'a, T: Num + Clone + MulAssign<&'a T> + AddAssign + 'b> Dist<T> {
                 }
             }
             for (c_i, c) in buffer_3.iter().enumerate() {
-                buffer[c_i] += a.clone() * c.clone();
+                let mut aa = a.clone();
+                aa.mul_assign(c);
+                buffer[c_i] += aa;
             }
         }
         self.values.clear();
@@ -236,13 +241,10 @@ impl<'a, 'b: 'a, T: Num + Clone + MulAssign<&'a T> + AddAssign + 'b> Dist<T> {
 }
 
 impl DiceExpression {
-    fn evaluate<
-        'a,
-        'b: 'a,
-        T: Num + Clone + MulAssign<&'a T> + MulAssign + PartialOrd + FromPrimitive + AddAssign + 'b,
-    >(
-        &self,
-    ) -> Dist<T> {
+    fn evaluate<T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign>
+    (&self) -> Dist<T>
+    where for<'a> T: MulAssign<&'a T>
+    {
         enum Stage {
             First,
             Second,
