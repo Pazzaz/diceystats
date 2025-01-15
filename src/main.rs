@@ -1,5 +1,4 @@
 use std::{
-    collections::btree_map::Keys,
     ops::{Add, AddAssign},
 };
 
@@ -72,23 +71,11 @@ impl Part {
 }
 
 #[derive(Debug, Clone)]
-struct DiceExpressionSlice<'a> {
-    parts: &'a [Part],
+struct DiceExpression {
+    parts: Vec<Part>,
 }
 
-impl<'a> DiceExpressionSlice<'a> {
-    fn slice(&self, n: usize) -> DiceExpressionSlice<'a> {
-        let parts = match self.parts[n] {
-            Part::None(_) => &self.parts[0..=n],
-            Part::Double(DoubleOp { a, b, .. }) => {
-                debug_assert!(a < b);
-                debug_assert!(b < n);
-                &self.parts[0..=n]
-            }
-        };
-        DiceExpressionSlice { parts }
-    }
-
+impl DiceExpression {
     fn evaluate<R: Rng + ?Sized>(&self, rng: &mut R) -> usize {
         enum Stage {
             First,
@@ -150,17 +137,6 @@ impl<'a> DiceExpressionSlice<'a> {
             };
         }
         *values.last().unwrap()
-    }
-}
-
-#[derive(Debug, Clone)]
-struct DiceExpression {
-    parts: Vec<Part>,
-}
-
-impl DiceExpression {
-    fn slice<'a>(&'a self) -> DiceExpressionSlice<'a> {
-        DiceExpressionSlice { parts: &self.parts[..] }
     }
 
     fn new(start: NoOp) -> Self {
@@ -244,17 +220,13 @@ impl Add<&Self> for DiceExpression {
 
 fn main() {
     let mut rng = thread_rng();
-    let yep = DiceExpression::new_d(20)
-        .add(&DiceExpression::new_d(10))
-        .multi_add(&DiceExpression::new_d(10))
-        .add(&DiceExpression::new_d(10))
-        .add(&DiceExpression::new_d(10))
-        .add(&DiceExpression::new_d(10));
+    let yep = DiceExpression::new_d(30)
+        .multi_add(&DiceExpression::new_d(30));
 
     let mut total: f64 = 0.0;
     let count = 10;
     for _ in 0..count {
-        total += yep.slice().evaluate(&mut rng) as f64;
+        total += yep.evaluate(&mut rng) as f64;
     }
     println!("{:?}", total / (count as f64));
 }
