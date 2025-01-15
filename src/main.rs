@@ -6,6 +6,8 @@ use std::{
     ops::{Add, AddAssign, Mul, MulAssign},
 };
 
+use num::Zero;
+
 #[derive(Debug, Clone, Copy)]
 struct Dice {
     n: usize,
@@ -115,24 +117,26 @@ impl<'a, 'b: 'a, T: Num + FromPrimitive + MulAssign<&'a T> + AddAssign + 'b> Dis
     }
 }
 
-impl<T: Num + Clone + AddAssign> Dist<T> {
-    fn op_inplace<F: Fn(usize, usize) -> usize, G2: Fn(&mut T, &T)>(
+impl<T: Num + Clone + AddAssign> Dist<T>
+where
+    for<'a> T: MulAssign<&'a T>,
+{
+    fn op_inplace<F: Fn(usize, usize) -> usize>(
         &mut self,
         other: &Dist<T>,
         buffer: &mut Vec<T>,
         f: F,
-        g2: G2,
     ) {
         debug_assert!(buffer.is_empty());
 
         // Assumes f is monotone
-        let new_len = f(self.values.len() + 1, other.values.len() + 1) - 1;
+        let new_len = f(self.values.len(), other.values.len());
         buffer.resize(new_len, T::zero());
         for (a_i, a) in self.values.iter().enumerate() {
             for (b_i, b) in other.values.iter().enumerate() {
                 let new_value = f(a_i + 1, b_i + 1);
                 let mut res: T = a.clone();
-                g2(&mut res, b);
+                res.mul_assign(b);
                 buffer[new_value - 1] += res;
             }
         }
@@ -144,12 +148,10 @@ impl<T: Num + Clone + AddAssign> Dist<T> {
 
 impl<T: Num + Clone + AddAssign> Dist<T>
 where
-    for<'a> T: AddAssign<&'a T>,
+    for<'a> T: MulAssign<&'a T>,
 {
     fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, usize::add, |a, b| {
-            a.add_assign(b);
-        });
+        self.op_inplace(other, buffer, usize::add);
     }
 }
 
@@ -158,29 +160,25 @@ where
     for<'a> T: MulAssign<&'a T>,
 {
     fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, usize::mul, |a, b| {
-            a.mul_assign(b);
-        });
+        self.op_inplace(other, buffer, usize::mul);
     }
 }
 
-impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T> {
+impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T>
+where
+    for<'a> T: MulAssign<&'a T>,
+{
     fn max_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, usize::max, |a, b| {
-            if *a < *b {
-                *a = b.clone();
-            }
-        });
+        self.op_inplace(other, buffer, usize::max);
     }
 }
 
-impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T> {
+impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T>
+where
+    for<'a> T: MulAssign<&'a T>,
+{
     fn min_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, usize::min, |a, b| {
-            if b < a {
-                *a = b.clone();
-            }
-        });
+        self.op_inplace(other, buffer, usize::min);
     }
 }
 
@@ -191,7 +189,7 @@ where
     fn repeat(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.is_empty());
 
-        let new_len = (self.values.len() + 1) * (other.values.len() + 1) - 1;
+        let new_len = self.values.len() * other.values.len();
         buffer.resize(new_len, T::zero());
         // We have a second buffer which tracks the chance of getting X with "current_i" iterations
         let mut buffer_2 = vec![T::zero(); new_len];
@@ -382,13 +380,74 @@ impl Add<&Self> for DiceExpression {
     }
 }
 
-fn main() {
-    let yep = DiceExpression::new_d(30).multi_add(&DiceExpression::new_d(30));
+peg::parser! {
+    grammar list_parser() for str {
+        rule number() -> usize = n:$(['0'..='9']+) {? n.parse::<usize>().or(Err("u32")) }
+        pub rule arithmetic() -> DiceExpression = precedence!{
+            x:(@) " "* "+" " "* y:@ { x + &y }
+            --
+            x:(@) " "* "*" " "* y:@ { x.mul(&y) }
+            --
+            x:(@) " "* "x" " "* y:@ { x.multi_add(&y) }
+            --
+            n:number() { DiceExpression::new(NoOp::Const(n)) }
+            "d" n:number() { DiceExpression::new(NoOp::Dice(Dice::new(n))) }
+            "(" " "* e:arithmetic() " "* ")" { e }
+        }
+    }
+}
 
-    let res: Dist<f64> = yep.evaluate();
-    println!("mean 1: {}", res.mean());
-    let res: Dist<BigRational> = yep.evaluate();
-    println!("mean 2: {}", res.mean());
+fn main() {
+    let res = list_parser::arithmetic("(d2 * d6)x(d30 + d2)");
+    match res {
+        Ok(x) => {
+            let res: Dist<BigRational> = x.evaluate();
+            for (i, v) in res.values.iter().enumerate() {
+                let min_precision = 20;
+                let formatted = format_impl(v, String::new(), 0, min_precision, None);
+                println!("{} : {}", i, formatted);
+            }
+        }
+        Err(x) => println!("ERR: {}", x),
+    }
+
+    // let res: Dist<BigRational> = yep.evaluate();
+    // println!("mean 2: {}", res.mean());
+}
+
+const MAX_PRECISION: usize = 30;
+
+fn format_impl(
+    value: &BigRational,
+    mut result: String,
+    depth: usize,
+    min_precision: usize,
+    precision: Option<usize>,
+) -> String {
+    debug_assert!(min_precision <= precision.unwrap_or(MAX_PRECISION));
+
+    let trunc = value.trunc().to_integer();
+    result += &trunc.to_string();
+
+    let numer = value.numer();
+    let denom = value.denom();
+    let value = numer - (trunc * denom);
+
+    let at_min = depth >= min_precision;
+    let at_max = depth >= precision.unwrap_or(MAX_PRECISION);
+    // If the user specified a precision for the formatting then we
+    // honor that by ensuring that we have that many decimals.
+    // Otherwise we print as many as there are, up to `MAX_PRECISION`.
+    if (value.is_zero() && precision.is_none() && at_min) || at_max {
+        result
+    } else {
+        if depth == 0 {
+            result += ".";
+        }
+
+        let value = BigRational::new(value * 10, denom.clone());
+        format_impl(&value, result, depth + 1, min_precision, precision)
+    }
 }
 
 #[cfg(test)]
