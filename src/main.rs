@@ -1,7 +1,7 @@
+use num::{BigRational, FromPrimitive, Num};
 use rand::{Rng, thread_rng};
 use std::{
-    cmp::max,
-    ops::{Add, AddAssign, Mul},
+    cmp::max, mem, ops::{Add, AddAssign, Mul, MulAssign}
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -17,7 +17,8 @@ impl Dice {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> usize {
         rng.gen_range(0..self.n) + 1
     }
-    fn dist(&self) -> ProbDist {
+    fn dist<'a, T: Num + FromPrimitive + Clone + AddAssign
+    + Mul + MulAssign<&'a T> + 'a>(&self) -> ProbDist<T> {
         ProbDist::uniform(self.n)
     }
 }
@@ -79,46 +80,61 @@ struct DiceExpression {
 }
 
 #[derive(Debug, Clone)]
-struct ProbDist {
-    values: Vec<f64>,
+struct ProbDist<T> {
+    values: Vec<T>,
+}
+// <'a, 'b: 'a, T: Num + FromPrimitive + Clone + AddAssign
+//      + Mul + MulAssign<&'a T> + 'b> ProbDist<T>
+
+impl<T: Num + FromPrimitive> ProbDist<T> {
+    fn uniform(n: usize) -> Self {
+        ProbDist { values: (0..n).map(|_| T::one() / T::from_usize(n).unwrap()).collect() }
+    }
 }
 
-impl ProbDist {
-    fn uniform(n: usize) -> Self {
-        ProbDist { values: (0..n).map(|x| 1.0 / (n as f64)).collect() }
-    }
-
+impl<T: Num + Clone> ProbDist<T> {
     fn constant(n: usize) -> Self {
         debug_assert!(n != 0);
-        let mut values = vec![0.0; n];
-        values[n - 1] = 1.0;
+        let mut values = vec![T::zero(); n];
+        values[n - 1] = T::one();
 
         ProbDist { values }
     }
+}
 
-    fn mean(&self) -> f64 {
-        let mut out = 0.0;
+impl<'a, 'b: 'a, T: Num + FromPrimitive + MulAssign<&'a T> + AddAssign + 'b> ProbDist<T> {
+    fn mean(&'b self) -> T {
+        let mut out = T::zero();
         for (i, v) in self.values.iter().enumerate() {
-            out += ((i + 1) as f64) * v;
+            let mut thing = T::from_usize(i + 1).unwrap();
+            thing *= v;
+            out += thing;
         }
         out
     }
+}
 
-    fn op_inplace<F: Fn(usize, usize) -> usize>(
+impl<'a, 'b: 'a, T: Num + Clone + MulAssign<&'a T> + Mul + AddAssign + 'b> ProbDist<T> {
+    fn op_inplace<
+    F: Fn(usize, usize) -> usize,
+    G: Fn(T, T) -> T,
+    >(
         &mut self,
-        other: &ProbDist,
-        buffer: &mut Vec<f64>,
+        other: &ProbDist<T>,
+        buffer: &mut Vec<T>,
         f: F,
+        g: G,
     ) {
         debug_assert!(buffer.len() == 0);
 
         // Assumes f is monotone
         let new_len = f(self.values.len() + 1, other.values.len() + 1) - 1;
-        buffer.resize(new_len, 0.0);
+        buffer.resize(new_len, T::zero());
         for (a_i, a) in self.values.iter().enumerate() {
             for (b_i, b) in other.values.iter().enumerate() {
                 let new_value = f(a_i + 1, b_i + 1);
-                buffer[new_value - 1] += a * b;
+                let res: T = g(a.clone(), b.clone());
+                buffer[new_value - 1] += res;
             }
         }
         self.values.clear();
@@ -126,55 +142,58 @@ impl ProbDist {
         buffer.clear();
     }
 
-    fn add_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
-        self.op_inplace(other, buffer, usize::add);
+    fn add_inplace(&mut self, other: &ProbDist<T>, buffer: &mut Vec<T>) {
+        self.op_inplace(other, buffer, usize::add, T::add);
     }
 
-    fn mul_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
-        self.op_inplace(other, buffer, usize::mul);
+    fn mul_inplace(&mut self, other: &ProbDist<T>, buffer: &mut Vec<T>) {
+        self.op_inplace(other, buffer, usize::mul, T::mul);
     }
 
-    fn min_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
-        self.op_inplace(other, buffer, usize::min);
+    fn min_inplace(&mut self, other: &ProbDist<T>, buffer: &mut Vec<T>) {
+        self.op_inplace(other, buffer, usize::min, T::mul);
     }
 
-    fn max_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
-        self.op_inplace(other, buffer, usize::max);
+    fn max_inplace(&mut self, other: &ProbDist<T>, buffer: &mut Vec<T>) {
+        self.op_inplace(other, buffer, usize::max, T::mul);
     }
+}
 
-    fn repeat(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
+impl<'a, 'b: 'a, T: Num + Clone + MulAssign<&'a T> + AddAssign + 'b> ProbDist<T> {
+    fn repeat(&mut self, other: &ProbDist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.len() == 0);
 
         let new_len = (self.values.len() + 1) * (other.values.len() + 1) - 1;
-        buffer.resize(new_len, 0.0);
+        buffer.resize(new_len, T::zero());
         // We have a second buffer which tracks the chance of getting X with "current_i" iterations
-        let mut buffer_2 = vec![0.0; new_len];
-        let mut buffer_3 = vec![0.0; new_len];
+        let mut buffer_2 = vec![T::zero(); new_len];
+        let mut buffer_3 = vec![T::zero(); new_len];
         let mut first = true;
         for a in &self.values {
-            for c in &mut buffer_3 {
-                *c = 0.0;
+            for ii in 0..new_len {
+                let mut tmp = T::zero();
+                mem::swap(buffer_3.get_mut(ii).unwrap(), &mut tmp);
+                buffer_2[ii] = tmp;
             }
             if first {
                 first = false;
                 for (b_i, b) in other.values.iter().enumerate() {
-                    buffer_3[b_i] = *b;
+                    buffer_3[b_i] = b.clone();
                 }
             } else {
-                for (b_i, &b) in other.values.iter().enumerate() {
-                    for (c_i, &c) in buffer_2.iter().enumerate() {
-                        if c == 0.0 {
+                for (b_i, b) in other.values.iter().enumerate() {
+                    for (c_i, c) in buffer_2.iter().enumerate() {
+                        if c.is_zero() {
                             continue;
                         }
                         let new_i = (b_i + 1) + (c_i + 1) - 1;
-                        buffer_3[new_i] += b * c;
+                        buffer_3[new_i] += b.clone() * c.clone();
                     }
                 }
             }
             for (c_i, c) in buffer_3.iter().enumerate() {
-                buffer[c_i] += c * a;
+                buffer[c_i] += a.clone() * c.clone();
             }
-            buffer_2.copy_from_slice(&buffer_3[..]);
         }
         self.values.clear();
         self.values.extend_from_slice(&buffer[..]);
@@ -198,14 +217,14 @@ impl ProbDist {
 }
 
 impl DiceExpression {
-    fn evaluate(&self) -> ProbDist {
+    fn evaluate<'a, 'b: 'a, T: Num + Clone + MulAssign<&'a T> + FromPrimitive + AddAssign + 'b>(&self) -> ProbDist<T> {
         enum Stage {
             First,
             Second,
         }
         let mut stack: Vec<(Part, Stage)> = vec![(*self.parts.last().unwrap(), Stage::First)];
-        let mut values: Vec<ProbDist> = Vec::new();
-        let mut buffer = Vec::new();
+        let mut values: Vec<ProbDist<T>> = Vec::new();
+        let mut buffer: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {
             match x {
                 (Part::None(NoOp::Dice(dice)), _) => values.push(dice.dist()),
@@ -329,8 +348,8 @@ impl Add<&Self> for DiceExpression {
 fn main() {
     let yep = DiceExpression::new_d(30).multi_add(&DiceExpression::new_d(30));
 
-    let res = yep.evaluate();
-    let one: f64 = res.values.iter().sum();
+    let res: ProbDist<BigRational> = yep.evaluate();
+    let one: BigRational = res.values.iter().sum();
     println!("{:?}", res);
     println!("mean: {}", res.mean());
     println!("one?: {}", one);
