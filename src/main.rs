@@ -1,8 +1,8 @@
-use std::{
-    ops::{Add, AddAssign},
-};
-
 use rand::{Rng, thread_rng};
+use std::{
+    cmp::max,
+    ops::{Add, AddAssign, Mul},
+};
 
 #[derive(Debug, Clone, Copy)]
 struct Dice {
@@ -16,6 +16,9 @@ impl Dice {
     }
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> usize {
         rng.gen_range(0..self.n) + 1
+    }
+    fn dist(&self) -> ProbDist {
+        ProbDist::uniform(self.n)
     }
 }
 
@@ -51,7 +54,7 @@ struct DoubleOp {
 enum DoubleOpName {
     Add,
     Mul,
-    Div,
+    // Div,
     Max,
     Min,
 
@@ -75,43 +78,151 @@ struct DiceExpression {
     parts: Vec<Part>,
 }
 
+#[derive(Debug, Clone)]
+struct ProbDist {
+    values: Vec<f64>,
+}
+
+impl ProbDist {
+    fn uniform(n: usize) -> Self {
+        ProbDist { values: (0..n).map(|x| 1.0 / (n as f64)).collect() }
+    }
+
+    fn constant(n: usize) -> Self {
+        debug_assert!(n != 0);
+        let mut values = vec![0.0; n];
+        values[n - 1] = 1.0;
+
+        ProbDist { values }
+    }
+
+    fn mean(&self) -> f64 {
+        let mut out = 0.0;
+        for (i, v) in self.values.iter().enumerate() {
+            out += ((i + 1) as f64) * v;
+        }
+        out
+    }
+
+    fn op_inplace<F: Fn(usize, usize) -> usize>(
+        &mut self,
+        other: &ProbDist,
+        buffer: &mut Vec<f64>,
+        f: F,
+    ) {
+        debug_assert!(buffer.len() == 0);
+
+        // Assumes f is monotone
+        let new_len = f(self.values.len() + 1, other.values.len() + 1) - 1;
+        buffer.resize(new_len, 0.0);
+        for (a_i, a) in self.values.iter().enumerate() {
+            for (b_i, b) in other.values.iter().enumerate() {
+                let new_value = f(a_i + 1, b_i + 1);
+                buffer[new_value - 1] += a * b;
+            }
+        }
+        self.values.clear();
+        self.values.extend_from_slice(&buffer[..]);
+        buffer.clear();
+    }
+
+    fn add_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
+        self.op_inplace(other, buffer, usize::add);
+    }
+
+    fn mul_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
+        self.op_inplace(other, buffer, usize::mul);
+    }
+
+    fn min_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
+        self.op_inplace(other, buffer, usize::min);
+    }
+
+    fn max_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
+        self.op_inplace(other, buffer, usize::max);
+    }
+
+    fn repeat(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
+        debug_assert!(buffer.len() == 0);
+
+        let new_len = (self.values.len() + 1) * (other.values.len() + 1) - 1;
+        buffer.resize(new_len, 0.0);
+        // We have a second buffer which tracks the chance of getting X with "current_i" iterations
+        let mut buffer_2 = vec![0.0; new_len];
+        let mut buffer_3 = vec![0.0; new_len];
+        let mut first = true;
+        for a in &self.values {
+            for c in &mut buffer_3 {
+                *c = 0.0;
+            }
+            if first {
+                first = false;
+                for (b_i, b) in other.values.iter().enumerate() {
+                    buffer_3[b_i] = *b;
+                }
+            } else {
+                for (b_i, &b) in other.values.iter().enumerate() {
+                    for (c_i, &c) in buffer_2.iter().enumerate() {
+                        if c == 0.0 {
+                            continue;
+                        }
+                        let new_i = (b_i + 1) + (c_i + 1) - 1;
+                        buffer_3[new_i] += b * c;
+                    }
+                }
+            }
+            for (c_i, c) in buffer_3.iter().enumerate() {
+                buffer[c_i] += c * a;
+            }
+            buffer_2.copy_from_slice(&buffer_3[..]);
+        }
+        self.values.clear();
+        self.values.extend_from_slice(&buffer[..]);
+        buffer.clear();
+    }
+
+    // fn div_inplace(&mut self, other: &ProbDist, buffer: &mut Vec<f64>) {
+    //     debug_assert!(buffer.len() == 0);
+    //     let new_len = max(other.values.len(), self.values.len());
+    //     buffer.resize(new_len, 0.0);
+    //     for (a_i, a) in self.values.iter().enumerate() {
+    //         for (b_i, b) in other.values.iter().enumerate() {
+    //             let new_value = (a_i + 1) / (b_i + 1);
+    //             buffer[new_value - 1] += a * b;
+    //         }
+    //     }
+    //     self.values.clear();
+    //     self.values.copy_from_slice(&buffer[..]);
+    //     buffer.clear();
+    // }
+}
+
 impl DiceExpression {
-    fn evaluate<R: Rng + ?Sized>(&self, rng: &mut R) -> usize {
+    fn evaluate(&self) -> ProbDist {
         enum Stage {
             First,
             Second,
-            Third(usize),
         }
         let mut stack: Vec<(Part, Stage)> = vec![(*self.parts.last().unwrap(), Stage::First)];
-        let mut values: Vec<usize> = Vec::new();
+        let mut values: Vec<ProbDist> = Vec::new();
+        let mut buffer = Vec::new();
         while let Some(x) = stack.pop() {
             match x {
-                (Part::None(NoOp::Dice(dice)), _) => values.push(dice.sample(rng)),
-                (Part::None(NoOp::Const(n)), _) => values.push(n),
+                (Part::None(NoOp::Dice(dice)), _) => values.push(dice.dist()),
+                (Part::None(NoOp::Const(n)), _) => values.push(ProbDist::constant(n)),
                 (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }), Stage::First) => {
                     stack.push((
                         Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }),
                         Stage::Second,
                     ));
                     stack.push((self.parts[a], Stage::First));
+                    stack.push((self.parts[b], Stage::First));
                 }
-                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }), Stage::Second) => {
-                    let repetitions = values.pop().unwrap();
-
-                    stack.push((
-                        Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }),
-                        Stage::Third(repetitions),
-                    ));
-                    for _ in 0..repetitions {
-                        stack.push((self.parts[b], Stage::First));
-                    }
-                }
-                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, .. }), Stage::Third(n)) => {
-                    let mut sum = 0;
-                    for _ in 0..n {
-                        sum += values.pop().unwrap();
-                    }
-                    values.push(sum);
+                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, .. }), Stage::Second) => {
+                    let b = values.pop().unwrap();
+                    let mut repetitions = values.pop().unwrap();
+                    repetitions.repeat(&b, &mut buffer);
+                    values.push(repetitions);
                 }
                 (Part::Double(double_op), Stage::First) => {
                     stack.push((Part::Double(double_op), Stage::Second));
@@ -120,23 +231,20 @@ impl DiceExpression {
                 }
                 (Part::Double(DoubleOp { name, .. }), Stage::Second) => {
                     let bb = values.pop().unwrap();
-                    let aa = values.pop().unwrap();
-                    let n = match name {
-                        DoubleOpName::Add => aa + bb,
-                        DoubleOpName::Mul => aa * bb,
-                        DoubleOpName::Div => aa / bb,
-                        DoubleOpName::Max => aa.max(bb),
-                        DoubleOpName::Min => aa.min(bb),
+                    let mut aa = values.pop().unwrap();
+                    match name {
+                        DoubleOpName::Add => aa.add_inplace(&bb, &mut buffer),
+                        DoubleOpName::Mul => aa.mul_inplace(&bb, &mut buffer),
+                        // DoubleOpName::Div => aa / bb,
+                        DoubleOpName::Max => aa.max_inplace(&bb, &mut buffer),
+                        DoubleOpName::Min => aa.min_inplace(&bb, &mut buffer),
                         DoubleOpName::MultiAdd => unreachable!(),
-                    };
-                    values.push(n);
-                }
-                (Part::Double(_), Stage::Third(_)) => {
-                    unreachable!();
+                    }
+                    values.push(aa);
                 }
             };
         }
-        *values.last().unwrap()
+        values.last().unwrap().clone()
     }
 
     fn new(start: NoOp) -> Self {
@@ -166,14 +274,14 @@ impl DiceExpression {
         self
     }
 
-    fn div_assign(&mut self, other: &DiceExpression) {
-        self.op_double_inplace(other, DoubleOpName::Div);
-    }
+    // fn div_assign(&mut self, other: &DiceExpression) {
+    //     self.op_double_inplace(other, DoubleOpName::Div);
+    // }
 
-    fn div(mut self, other: &DiceExpression) -> Self {
-        self.div_assign(other);
-        self
-    }
+    // fn div(mut self, other: &DiceExpression) -> Self {
+    //     self.div_assign(other);
+    //     self
+    // }
 
     fn min_assign(&mut self, other: &DiceExpression) {
         self.op_double_inplace(other, DoubleOpName::Min);
@@ -219,14 +327,11 @@ impl Add<&Self> for DiceExpression {
 }
 
 fn main() {
-    let mut rng = thread_rng();
-    let yep = DiceExpression::new_d(30)
-        .multi_add(&DiceExpression::new_d(30));
+    let yep = DiceExpression::new_d(30).multi_add(&DiceExpression::new_d(30));
 
-    let mut total: f64 = 0.0;
-    let count = 10;
-    for _ in 0..count {
-        total += yep.evaluate(&mut rng) as f64;
-    }
-    println!("{:?}", total / (count as f64));
+    let res = yep.evaluate();
+    let one: f64 = res.values.iter().sum();
+    println!("{:?}", res);
+    println!("mean: {}", res.mean());
+    println!("one?: {}", one);
 }
