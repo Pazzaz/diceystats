@@ -1,3 +1,4 @@
+#![feature(test)]
 use num::{BigRational, FromPrimitive, Num};
 use rand::{Rng, thread_rng};
 use std::{
@@ -143,18 +144,22 @@ impl<T: Num + Clone + AddAssign> Dist<T>
     }
 }
 
-impl<T: Num + Clone + AddAssign> Dist<T> {
+impl<T: Num + Clone + AddAssign> Dist<T>
+where for<'a> T : AddAssign<&'a T>
+{
     fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, usize::add, |a, b| {
-            a.add_assign(b.clone());
+            a.add_assign(b);
         });
     }
 }
 
-impl<T: Num + Clone + AddAssign + MulAssign> Dist<T> {
+impl<T: Num + Clone + AddAssign + MulAssign> Dist<T>
+where for<'a> T : MulAssign<&'a T>
+{
     fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, usize::mul, |a, b| {
-            a.mul_assign(b.clone());
+            a.mul_assign(b);
         });
     }
 }
@@ -209,7 +214,9 @@ where for<'a> T : MulAssign<&'a T>
                             continue;
                         }
                         let new_i = (b_i + 1) + (c_i + 1) - 1;
-                        buffer_3[new_i] += b.clone() * c.clone();
+                        let mut res = b.clone();
+                        res *= c;
+                        buffer_3[new_i] += res;
                     }
                 }
             }
@@ -243,7 +250,7 @@ where for<'a> T : MulAssign<&'a T>
 impl DiceExpression {
     fn evaluate<T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign>
     (&self) -> Dist<T>
-    where for<'a> T: MulAssign<&'a T>
+    where for<'a> T: AddAssign<&'a T> + MulAssign<&'a T>
     {
         enum Stage {
             First,
@@ -290,7 +297,7 @@ impl DiceExpression {
                 }
             };
         }
-        values.last().unwrap().clone()
+        values.pop().unwrap()
     }
 
     fn new(start: NoOp) -> Self {
@@ -379,4 +386,20 @@ fn main() {
     println!("mean 1: {}", res.mean());
     let res: Dist<BigRational> = yep.evaluate();
     println!("mean 2: {}", res.mean());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    extern crate test;
+    use test::Bencher;
+    
+    #[bench]
+    fn eval_30dx30d(b: &mut Bencher) {
+        let yep = DiceExpression::new_d(5).multi_add(&DiceExpression::new_d(5));
+        b.iter(|| {
+            let res: Dist<BigRational> = yep.evaluate();
+            test::black_box(res);
+        });
+    }
 }
