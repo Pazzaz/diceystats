@@ -48,6 +48,8 @@ struct DoubleOp {
 #[derive(Debug, Clone, Copy)]
 enum DoubleOpName {
     Add,
+    Mul,
+    Div,
     Max,
     Min,
 
@@ -97,6 +99,14 @@ impl<'a> DiceExpressionSlice<'a> {
                     DoubleOpName::Add => {
                         let bb = self.slice(b).evaluate(rng);
                         aa + bb
+                    }
+                    DoubleOpName::Mul => {
+                        let bb = self.slice(b).evaluate(rng);
+                        aa * bb
+                    }
+                    DoubleOpName::Div => {
+                        let bb = self.slice(b).evaluate(rng);
+                        aa / bb
                     }
                     DoubleOpName::Max => {
                         let bb = self.slice(b).evaluate(rng);
@@ -148,6 +158,24 @@ impl DiceExpression {
             a: first_element,
             b: second_element,
         }));
+    }
+
+    fn mul_assign(&mut self, other: &DiceExpression) {
+        self.op_double_inplace(other, DoubleOpName::Mul);
+    }
+
+    fn mul(mut self, other: &DiceExpression) -> Self {
+        self.mul_assign(other);
+        self
+    }
+
+    fn div_assign(&mut self, other: &DiceExpression) {
+        self.op_double_inplace(other, DoubleOpName::Div);
+    }
+
+    fn div(mut self, other: &DiceExpression) -> Self {
+        self.div_assign(other);
+        self
     }
 
     fn min_assign(&mut self, other: &DiceExpression) {
