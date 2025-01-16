@@ -210,30 +210,28 @@ where
                 continue;
             }
 
-            let source = &mut buffer_2;
-            let destination = &mut buffer_3;
-            mem::swap(source, destination);
+            buffer_2.swap_with_slice(&mut buffer_3);
 
             for ii in 0..(s+other.values.len()) {
-                destination[a_i+ii].set_zero();
+                buffer_3[a_i+ii].set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
                 if b.is_zero() {
                     continue;
                 }
                 for c_i in 0..s {
-                    let c = &source[c_i + a_i];
+                    let c = &buffer_2[c_i + a_i];
                     if c.is_zero() {
                         continue;
                     }
                     let new_i = a_i + b_i + c_i + 1;
                     let mut res = b.clone();
                     res *= c;
-                    destination[new_i] += res;
+                    buffer_3[new_i] += res;
                 }
             }
             for c_i in 0..(s+other.values.len()) {
-                let c = &destination[a_i+c_i];
+                let c = &buffer_3[a_i+c_i];
                 let mut aa = a.clone();
                 aa.mul_assign(c);
                 buffer[a_i+c_i] += aa;
