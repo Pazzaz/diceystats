@@ -133,7 +133,9 @@ where
         let new_len = f(self.values.len(), other.values.len());
         buffer.resize(new_len, T::zero());
         for (a_i, a) in self.values.iter().enumerate() {
+            if a.is_zero() { continue }
             for (b_i, b) in other.values.iter().enumerate() {
+                if b.is_zero() { continue }
                 let new_value = f(a_i + 1, b_i + 1);
                 let mut res: T = a.clone();
                 res.mul_assign(b);
@@ -196,6 +198,10 @@ where
         let mut buffer_3 = vec![T::zero(); new_len];
         let mut first = true;
         for a in &self.values {
+            if a.is_zero() {
+                continue;
+            }
+
             for ii in 0..new_len {
                 let mut tmp = T::zero();
                 mem::swap(buffer_3.get_mut(ii).unwrap(), &mut tmp);
@@ -208,6 +214,9 @@ where
                 }
             } else {
                 for (b_i, b) in other.values.iter().enumerate() {
+                    if b.is_zero() {
+                        continue;
+                    }
                     for (c_i, c) in buffer_2.iter().enumerate() {
                         if c.is_zero() {
                             continue;
@@ -398,7 +407,7 @@ peg::parser! {
 }
 
 fn main() {
-    let res = list_parser::arithmetic("(d2 * d6)x(d30 + d2)");
+    let res = list_parser::arithmetic("(d6x(d6*d6*d6))");
     match res {
         Ok(x) => {
             let res: Dist<BigRational> = x.evaluate();
@@ -454,6 +463,7 @@ fn format_impl(
 mod tests {
     use super::*;
     extern crate test;
+    use num::BigInt;
     use test::Bencher;
 
     #[bench]
@@ -463,5 +473,11 @@ mod tests {
             let res: Dist<BigRational> = yep.evaluate();
             test::black_box(res);
         });
+    }
+
+    #[test]
+    fn repeat_simple() {
+        let yep = DiceExpression::new_d(9).multi_add(&DiceExpression::new_d(10));
+        assert_eq!(yep.evaluate::<BigRational>().mean(), BigRational::new(BigInt::from(55), BigInt::from(2)));
     }
 }
