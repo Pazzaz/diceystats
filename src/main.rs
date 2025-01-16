@@ -186,7 +186,7 @@ where
 
 impl<T: Num + Clone + AddAssign> Dist<T>
 where
-    for<'a> T: MulAssign<&'a T>,
+    for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
     fn repeat(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.is_empty());
@@ -195,40 +195,43 @@ where
         buffer.resize(new_len, T::zero());
         // We have a second buffer which tracks the chance of getting X with "current_i" iterations
         let mut buffer_2 = vec![T::zero(); new_len];
-        let mut buffer_3 = vec![T::zero(); new_len];
-        let mut first = true;
-        for a in &self.values {
+        let mut buffer_3 = buffer_2.clone();
+
+        for (b_i, b) in other.values.iter().enumerate() {
+            buffer_3[b_i] = b.clone();
+            buffer[b_i] += b;
+            buffer[b_i] *= &self.values[0];
+        }
+
+        for a in &self.values[1..] {
             if a.is_zero() {
                 continue;
             }
 
+            let source = &mut buffer_2;
+            let destination = &mut buffer_3;
+            mem::swap(source, destination);
+
             for ii in 0..new_len {
-                let mut tmp = T::zero();
-                mem::swap(buffer_3.get_mut(ii).unwrap(), &mut tmp);
-                buffer_2[ii] = tmp;
+                destination[ii].set_zero();
             }
-            if first {
-                first = false;
-                for (b_i, b) in other.values.iter().enumerate() {
-                    buffer_3[b_i] = b.clone();
+            for (b_i, b) in other.values.iter().enumerate() {
+                if b.is_zero() {
+                    continue;
                 }
-            } else {
-                for (b_i, b) in other.values.iter().enumerate() {
-                    if b.is_zero() {
+                for c_i in 0..(new_len - b_i - 1) {
+                    let c = &source[c_i];
+                    if c.is_zero() {
                         continue;
                     }
-                    for (c_i, c) in buffer_2.iter().enumerate() {
-                        if c.is_zero() {
-                            continue;
-                        }
-                        let new_i = (b_i + 1) + (c_i + 1) - 1;
-                        let mut res = b.clone();
-                        res *= c;
-                        buffer_3[new_i] += res;
-                    }
+                    let new_i = (b_i + 1) + (c_i + 1) - 1;
+                    let mut res = b.clone();
+                    res *= c;
+                    destination[new_i] += res;
                 }
             }
-            for (c_i, c) in buffer_3.iter().enumerate() {
+            for c_i in 0..new_len {
+                let c = &destination[c_i];
                 let mut aa = a.clone();
                 aa.mul_assign(c);
                 buffer[c_i] += aa;
@@ -407,7 +410,7 @@ peg::parser! {
 }
 
 fn main() {
-    let res = list_parser::arithmetic("(d6x(d6*d6*d6))");
+    let res = list_parser::arithmetic("d6xd6");
     match res {
         Ok(x) => {
             let res: Dist<BigRational> = x.evaluate();
@@ -468,7 +471,7 @@ mod tests {
 
     #[bench]
     fn eval_30dx30d(b: &mut Bencher) {
-        let yep = DiceExpression::new_d(5).multi_add(&DiceExpression::new_d(5));
+        let yep = DiceExpression::new_d(6).multi_add(&DiceExpression::new_d(6));
         b.iter(|| {
             let res: Dist<BigRational> = yep.evaluate();
             test::black_box(res);
