@@ -496,6 +496,14 @@ mod tests {
         });
     }
 
+    #[bench]
+    fn parsing(b: &mut Bencher) {
+        b.iter(|| {
+            let yep: DiceExpression = "d30 + (d20xd30*d43423x(d20 + d4*d32 + 43))".parse().unwrap();
+            test::black_box(yep);
+        });
+    }
+
     #[test]
     fn repeat_simple() {
         let yep: DiceExpression = "d9xd10".parse().unwrap();
