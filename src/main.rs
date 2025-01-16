@@ -214,8 +214,8 @@ where
             let destination = &mut buffer_3;
             mem::swap(source, destination);
 
-            for ii in 0..new_len {
-                destination[ii].set_zero();
+            for ii in 0..(s+other.values.len()) {
+                destination[a_i+ii].set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
                 if b.is_zero() {
@@ -232,11 +232,11 @@ where
                     destination[new_i] += res;
                 }
             }
-            for c_i in 0..new_len {
-                let c = &destination[c_i];
+            for c_i in 0..(s+other.values.len()) {
+                let c = &destination[a_i+c_i];
                 let mut aa = a.clone();
                 aa.mul_assign(c);
-                buffer[c_i] += aa;
+                buffer[a_i+c_i] += aa;
             }
             s += other.values.len() - 1;
         }
