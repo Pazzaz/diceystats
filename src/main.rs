@@ -184,7 +184,7 @@ where
     }
 }
 
-impl<T: Num + Clone + AddAssign> Dist<T>
+impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
@@ -194,16 +194,18 @@ where
         let new_len = self.values.len() * other.values.len();
         buffer.resize(new_len, T::zero());
         // We have a second buffer which tracks the chance of getting X with "current_i" iterations
-        let mut buffer_2 = vec![T::zero(); new_len];
-        let mut buffer_3 = buffer_2.clone();
+        let mut buffer_2 = buffer.clone();
+        let mut buffer_3 = buffer.clone();
 
         for (b_i, b) in other.values.iter().enumerate() {
-            buffer_3[b_i] = b.clone();
+            buffer_3[b_i] += b;
             buffer[b_i] += b;
             buffer[b_i] *= &self.values[0];
         }
 
-        for a in &self.values[1..] {
+        let mut s = other.values.len();
+
+        for (a_i, a) in self.values.iter().skip(1).enumerate() {
             if a.is_zero() {
                 continue;
             }
@@ -219,12 +221,12 @@ where
                 if b.is_zero() {
                     continue;
                 }
-                for c_i in 0..(new_len - b_i - 1) {
-                    let c = &source[c_i];
+                for c_i in 0..s {
+                    let c = &source[c_i + a_i];
                     if c.is_zero() {
                         continue;
                     }
-                    let new_i = (b_i + 1) + (c_i + 1) - 1;
+                    let new_i = a_i + b_i + c_i + 1;
                     let mut res = b.clone();
                     res *= c;
                     destination[new_i] += res;
@@ -236,6 +238,7 @@ where
                 aa.mul_assign(c);
                 buffer[c_i] += aa;
             }
+            s += other.values.len() - 1;
         }
         self.values.clear();
         self.values.extend_from_slice(&buffer[..]);
@@ -259,7 +262,7 @@ where
 }
 
 impl DiceExpression {
-    fn evaluate<T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign>(
+    fn evaluate<T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign + std::fmt::Debug>(
         &self,
     ) -> Dist<T>
     where
@@ -410,7 +413,7 @@ peg::parser! {
 }
 
 fn main() {
-    let res = list_parser::arithmetic("d6xd6");
+    let res = list_parser::arithmetic("d7xd5");
     match res {
         Ok(x) => {
             let res: Dist<BigRational> = x.evaluate();
@@ -482,5 +485,11 @@ mod tests {
     fn repeat_simple() {
         let yep = DiceExpression::new_d(9).multi_add(&DiceExpression::new_d(10));
         assert_eq!(yep.evaluate::<BigRational>().mean(), BigRational::new(BigInt::from(55), BigInt::from(2)));
+    }
+
+    #[test]
+    fn repeat_30() {
+        let yep = DiceExpression::new_d(30).multi_add(&DiceExpression::new_d(30));
+        assert_eq!(yep.evaluate::<BigRational>().mean(), BigRational::new(BigInt::from(961), BigInt::from(4)));
     }
 }
