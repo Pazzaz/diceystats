@@ -285,8 +285,8 @@ impl DiceExpression {
                     stack.push((self.parts[b], Stage::First));
                 }
                 (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, .. }), Stage::Second) => {
-                    let b = values.pop().unwrap();
                     let mut repetitions = values.pop().unwrap();
+                    let b = values.pop().unwrap();
                     repetitions.repeat(&b, &mut buffer);
                     values.push(repetitions);
                 }
@@ -296,8 +296,8 @@ impl DiceExpression {
                     stack.push((self.parts[double_op.b], Stage::First));
                 }
                 (Part::Double(DoubleOp { name, .. }), Stage::Second) => {
-                    let bb = values.pop().unwrap();
                     let mut aa = values.pop().unwrap();
+                    let bb = values.pop().unwrap();
                     match name {
                         DoubleOpName::Add => aa.add_inplace(&bb, &mut buffer),
                         DoubleOpName::Mul => aa.mul_inplace(&bb, &mut buffer),
