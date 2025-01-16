@@ -1,9 +1,9 @@
 #![feature(test)]
 use num::{BigRational, FromPrimitive, Num};
+use peg::str::LineCol;
 use rand::Rng;
 use std::{
-    mem,
-    ops::{Add, AddAssign, Mul, MulAssign},
+    ops::{Add, AddAssign, Mul, MulAssign}, str::FromStr,
 };
 
 use num::Zero;
@@ -194,8 +194,8 @@ where
         let new_len = self.values.len() * other.values.len();
         buffer.resize(new_len, T::zero());
         // We have a second buffer which tracks the chance of getting X with "current_i" iterations
-        let mut buffer_2 = buffer.clone();
-        let mut buffer_3 = buffer.clone();
+        let mut buffer_2 = vec![T::zero(); new_len - self.values.len() + 1];
+        let mut buffer_3 = vec![T::zero(); new_len - self.values.len() + 1];
 
         for (b_i, b) in other.values.iter().enumerate() {
             buffer_3[b_i] += b;
@@ -210,33 +210,33 @@ where
                 continue;
             }
 
-            buffer_2.swap_with_slice(&mut buffer_3);
-
-            for ii in 0..(s+other.values.len()) {
-                buffer_3[a_i+ii].set_zero();
+            buffer_2[0..s].swap_with_slice(&mut buffer_3[0..s]);
+            
+            for ii in 0..(other.values.len() + s-1) {
+                buffer_3[ii].set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
                 if b.is_zero() {
                     continue;
                 }
                 for c_i in 0..s {
-                    let c = &buffer_2[c_i + a_i];
+                    let c = &buffer_2[c_i];
                     if c.is_zero() {
                         continue;
                     }
-                    let new_i = a_i + b_i + c_i + 1;
+                    let new_i = b_i + c_i;
                     let mut res = b.clone();
                     res *= c;
                     buffer_3[new_i] += res;
                 }
             }
-            for c_i in 0..(s+other.values.len()) {
-                let c = &buffer_3[a_i+c_i];
+            s += other.values.len() - 1;
+            for c_i in 0..s {
+                let c = &buffer_3[c_i];
                 let mut aa = a.clone();
                 aa.mul_assign(c);
-                buffer[a_i+c_i] += aa;
+                buffer[a_i+c_i+1] += aa;
             }
-            s += other.values.len() - 1;
         }
         self.values.clear();
         self.values.extend_from_slice(&buffer[..]);
@@ -393,6 +393,14 @@ impl Add<&Self> for DiceExpression {
     }
 }
 
+impl FromStr for DiceExpression {
+    type Err = peg::error::ParseError<LineCol>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        list_parser::arithmetic(s)
+    }
+}
+
 peg::parser! {
     grammar list_parser() for str {
         rule number() -> usize = n:$(['0'..='9']+) {? n.parse::<usize>().or(Err("u32")) }
@@ -411,15 +419,15 @@ peg::parser! {
 }
 
 fn main() {
-    let res = list_parser::arithmetic("d7xd5");
-    match res {
+    match "d6xd4".parse::<DiceExpression>() {
         Ok(x) => {
-            let res: Dist<BigRational> = x.evaluate();
-            for (i, v) in res.values.iter().enumerate() {
-                let min_precision = 20;
-                let formatted = format_impl(v, String::new(), 0, min_precision, None);
-                println!("{} : {}", i, formatted);
-            }
+            let res: Dist<f64> = x.evaluate();
+            println!("{}", res.mean());
+            // for (i, v) in res.values.iter().enumerate() {
+            //     let min_precision = 20;
+            //     let formatted = format_impl(v, String::new(), 0, min_precision, None);
+            //     println!("{} : {}", i, formatted);
+            // }
         }
         Err(x) => println!("ERR: {}", x),
     }
