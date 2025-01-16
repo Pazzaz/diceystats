@@ -471,23 +471,32 @@ mod tests {
     use test::Bencher;
 
     #[bench]
-    fn eval_30dx30d(b: &mut Bencher) {
-        let yep = DiceExpression::new_d(6).multi_add(&DiceExpression::new_d(6));
+    fn eval_6dx6d(b: &mut Bencher) {
+        let yep: DiceExpression = "d6xd6".parse().unwrap();
         b.iter(|| {
             let res: Dist<BigRational> = yep.evaluate();
             test::black_box(res);
         });
     }
 
+    #[bench]
+    fn f64_30dx30d(b: &mut Bencher) {
+        let yep: DiceExpression = "d30xd30".parse().unwrap();
+        b.iter(|| {
+            let res: Dist<f64> = yep.evaluate();
+            test::black_box(res);
+        });
+    }
+
     #[test]
     fn repeat_simple() {
-        let yep = DiceExpression::new_d(9).multi_add(&DiceExpression::new_d(10));
+        let yep: DiceExpression = "d9xd10".parse().unwrap();
         assert_eq!(yep.evaluate::<BigRational>().mean(), BigRational::new(BigInt::from(55), BigInt::from(2)));
     }
 
     #[test]
-    fn repeat_30() {
-        let yep = DiceExpression::new_d(30).multi_add(&DiceExpression::new_d(30));
+    fn rational_30dx30d() {
+        let yep: DiceExpression = "d30xd30".parse().unwrap();
         assert_eq!(yep.evaluate::<BigRational>().mean(), BigRational::new(BigInt::from(961), BigInt::from(4)));
     }
 }
