@@ -517,6 +517,7 @@ impl FromStr for DiceExpression {
 peg::parser! {
     grammar list_parser() for str {
         rule number() -> usize = n:$(['0'..='9']+) {? n.parse::<usize>().or(Err("u32")) }
+        rule list_part() -> DiceExpression = " "* e:arithmetic() " "* { e }
         pub rule arithmetic() -> DiceExpression = precedence!{
             x:(@) " "* "+" " "* y:@ { x.add(&y) }
             x:(@) " "* "-" " "* y:@ { x.sub(&y) }
@@ -525,18 +526,25 @@ peg::parser! {
             --
             x:(@) " "* "x" " "* y:@ { x.multi_add(&y) }
             --
+            n1:number() "d" n2:number() {
+                let nn1 = DiceExpression::new(NoOp::Const((n1 as isize)));
+                let nn2 = DiceExpression::new(NoOp::Dice(Dice::new(n2)));
+                nn1.multi_add(&nn2)
+            }
             n:number() { DiceExpression::new(NoOp::Const(n as isize)) }
             "-" n:number() { DiceExpression::new(NoOp::Const(-(n as isize))) }
             "d" n:number() { DiceExpression::new(NoOp::Dice(Dice::new(n))) }
+            "min(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.min(&b)).unwrap() }
+            "max(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.max(&b)).unwrap() }
             "(" " "* e:arithmetic() " "* ")" { e }
         }
     }
 }
 
 fn main() {
-    match "(d3+3)x(d4-d5)".parse::<DiceExpression>() {
+    match "20d30".parse::<DiceExpression>() {
         Ok(x) => {
-            let res: Dist<f64> = x.evaluate();
+            let res: Dist<BigRational> = x.evaluate();
             println!("{:?}", res);
             println!("{}", res.mean());
             // for (i, v) in res.values.iter().enumerate() {
