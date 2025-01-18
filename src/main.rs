@@ -5,6 +5,7 @@ use rand::Rng;
 use std::{
     ops::{Add, AddAssign, Mul, MulAssign}, str::FromStr,
 };
+use std::ops::Sub;
 
 use num::Zero;
 
@@ -18,11 +19,11 @@ impl Dice {
         debug_assert!(n != 0);
         Self { n }
     }
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> usize {
-        rng.gen_range(0..self.n) + 1
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
+        (rng.gen_range(0..self.n) + 1) as isize
     }
     fn dist<T: Num + FromPrimitive>(&self) -> Dist<T> {
-        Dist::uniform(self.n)
+        Dist::uniform(1, self.n as isize)
     }
 }
 
@@ -35,11 +36,11 @@ enum Part {
 #[derive(Debug, Clone, Copy)]
 enum NoOp {
     Dice(Dice),
-    Const(usize),
+    Const(isize),
 }
 
 impl NoOp {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> usize {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
         match *self {
             NoOp::Dice(dice) => dice.sample(rng),
             NoOp::Const(x) => x,
@@ -58,7 +59,7 @@ struct DoubleOp {
 enum DoubleOpName {
     Add,
     Mul,
-    // Div,
+    Sub,
     Max,
     Min,
 
@@ -85,23 +86,35 @@ struct DiceExpression {
 #[derive(Debug, Clone)]
 struct Dist<T> {
     values: Vec<T>,
+    offset: isize,
 }
+
+impl <T> Dist<T> {
+    fn max_value(&self) -> isize {
+        self.offset + (self.values.len() as isize) - 1
+    }
+
+    fn min_value(&self) -> isize {
+        self.offset
+    }
+}
+
 // <'a, 'b: 'a, T: Num + FromPrimitive + Clone + AddAssign
 //      + Mul + MulAssign<&'a T> + 'b> Dist<T>
 
 impl<T: Num + FromPrimitive> Dist<T> {
-    fn uniform(n: usize) -> Self {
-        Dist { values: (0..n).map(|_| T::one() / T::from_usize(n).unwrap()).collect() }
+    fn uniform(min: isize, max: isize) -> Self {
+        debug_assert!(min <= max);
+        let choices = (max - min + 1) as usize;
+        Dist { values: (min..=max).map(|_| T::one() / T::from_usize(choices).unwrap()).collect(), offset: min }
     }
 }
 
 impl<T: Num + Clone> Dist<T> {
-    fn constant(n: usize) -> Self {
-        debug_assert!(n != 0);
-        let mut values = vec![T::zero(); n];
-        values[n - 1] = T::one();
+    fn constant(n: isize) -> Self {
+        let values = vec![T::one()];
 
-        Dist { values }
+        Dist { values, offset: n }
     }
 }
 
@@ -109,19 +122,19 @@ impl<'a, 'b: 'a, T: Num + FromPrimitive + MulAssign<&'a T> + AddAssign + 'b> Dis
     fn mean(&'b self) -> T {
         let mut out = T::zero();
         for (i, v) in self.values.iter().enumerate() {
-            let mut thing = T::from_usize(i + 1).unwrap();
+            let mut thing = T::from_usize(i).unwrap();
             thing *= v;
             out += thing;
         }
-        out
+        T::from_isize(self.offset).unwrap() + out
     }
 }
 
-impl<T: Num + Clone + AddAssign> Dist<T>
+impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
 where
     for<'a> T: MulAssign<&'a T>,
 {
-    fn op_inplace<F: Fn(usize, usize) -> usize>(
+    fn op_inplace<F: Fn(isize, isize) -> isize>(
         &mut self,
         other: &Dist<T>,
         buffer: &mut Vec<T>,
@@ -129,58 +142,88 @@ where
     ) {
         debug_assert!(buffer.is_empty());
 
-        // Assumes f is monotone
-        let new_len = f(self.values.len(), other.values.len());
-        buffer.resize(new_len, T::zero());
+        let largest_value = {
+            let la = (self.values.len() - 1) as isize;
+            let oa = self.offset;
+            let lb = (other.values.len() - 1) as isize;
+            let ob = other.offset;
+            f(oa + la, ob + lb)
+                .max(f(oa + la, ob))
+                .max(f(oa, ob + lb))
+                .max(f(oa, ob))
+        };
+
+        let min_value = {
+            let la = (self.values.len() - 1) as isize;
+            let oa = self.offset;
+            let lb = (other.values.len() - 1) as isize;
+            let ob = other.offset;
+            f(oa + la, ob + lb)
+                .min(f(oa + la, ob))
+                .min(f(oa, ob + lb))
+                .min(f(oa, ob))
+        };
+
+        buffer.resize((largest_value - min_value + 1) as usize, T::zero());
         for (a_i, a) in self.values.iter().enumerate() {
             if a.is_zero() { continue }
             for (b_i, b) in other.values.iter().enumerate() {
                 if b.is_zero() { continue }
-                let new_value = f(a_i + 1, b_i + 1);
+                let new_value = f(a_i as isize + self.offset, b_i as isize + other.offset);
                 let mut res: T = a.clone();
                 res.mul_assign(b);
-                buffer[new_value - 1] += res;
+                buffer[(new_value - min_value) as usize] += res;
             }
         }
         self.values.clear();
         self.values.extend_from_slice(&buffer[..]);
+        self.offset = min_value;
         buffer.clear();
     }
 }
 
-impl<T: Num + Clone + AddAssign> Dist<T>
+impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
 where
     for<'a> T: MulAssign<&'a T>,
 {
     fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, usize::add);
+        self.op_inplace(other, buffer, isize::add);
     }
 }
 
-impl<T: Num + Clone + AddAssign + MulAssign> Dist<T>
+impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
 where
     for<'a> T: MulAssign<&'a T>,
 {
     fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, usize::mul);
+        self.op_inplace(other, buffer, isize::mul);
     }
 }
 
-impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T>
+impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
+where
+    for<'a> T: MulAssign<&'a T>,
+{
+    fn sub_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+        self.op_inplace(other, buffer, isize::sub);
+    }
+}
+
+impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
 where
     for<'a> T: MulAssign<&'a T>,
 {
     fn max_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, usize::max);
+        self.op_inplace(other, buffer, isize::max);
     }
 }
 
-impl<T: Num + Clone + AddAssign + PartialOrd> Dist<T>
+impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
 where
     for<'a> T: MulAssign<&'a T>,
 {
     fn min_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, usize::min);
+        self.op_inplace(other, buffer, isize::min);
     }
 }
 
@@ -190,56 +233,117 @@ where
 {
     fn repeat(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.is_empty());
+        debug_assert!(0 <= self.offset);
 
-        let new_len = self.values.len() * other.values.len();
-        buffer.resize(new_len, T::zero());
-        // We have a second buffer which tracks the chance of getting X with "current_i" iterations
-        let mut buffer_2 = vec![T::zero(); new_len - self.values.len() + 1];
-        let mut buffer_3 = vec![T::zero(); new_len - self.values.len() + 1];
+        //  starting_case  min_value                         max_value
+        //  - 0 +
+        // [ ]             self.max_value * other.min_value  self.min_value * other.max_value
+        //   [ ]           self.max_value * other.min_value  self.max_value * other.max_value
+        //     [ ]         self.min_value * other.min_value  self.max_value * other.max_value
 
-        for (b_i, b) in other.values.iter().enumerate() {
-            buffer_3[b_i] += b;
-            buffer[b_i] += b;
-            buffer[b_i] *= &self.values[0];
+
+        let min_value =
+            (self.max_value() * other.min_value())
+            .min(self.max_value() * other.min_value())
+            .min(self.min_value() * other.min_value());
+
+        let max_value =
+            (self.min_value() * other.max_value())
+            .max(self.max_value() * other.max_value())
+            .max(self.max_value() * other.max_value());
+
+
+        if max_value == min_value {
+            *self = Dist::constant(max_value);
+            return;
         }
 
-        let mut s = other.values.len();
+        let new_len = (max_value - min_value + 1) as usize;
+        buffer.resize(new_len, T::zero());
 
-        for (a_i, a) in self.values.iter().skip(1).enumerate() {
+        let min_value_tmp = min_value.min(other.min_value());
+        let max_value_tmp = max_value.max(other.max_value());
+        let tmp_len = (max_value_tmp - min_value_tmp + 1) as usize;
+
+        // We have a second buffer which tracks the chance of getting X with "current_i" iterations
+        let mut source = vec![T::zero(); tmp_len];
+        let mut dest = vec![T::zero(); tmp_len];
+
+        for (b_i, b) in other.values.iter().enumerate() {
+            let index = b_i as isize + other.offset - min_value_tmp;
+            dest[index as usize] = b.clone();
+        }
+
+        // First we iterate through the self.offset
+        for _ in 1..self.offset {
+            source.swap_with_slice(&mut dest);
+
+            for i in 0..tmp_len {
+                dest[i].set_zero();
+            }
+            for (b_i, b) in other.values.iter().enumerate() {
+                if b.is_zero() { continue; }
+                let real_b_i = b_i as isize + other.offset;
+                for (c_i, c) in source.iter().enumerate() {
+                    if c.is_zero() { continue; }
+                    let real_c_i = c_i as isize + min_value_tmp;
+                    let real_d_i = real_b_i + real_c_i;
+                    let d_i = (real_d_i - min_value_tmp) as usize;
+                    let mut res = b.clone();
+                    res *= c;
+                    dest[d_i] += res;
+                }
+            }
+        }
+
+        // We handle first (non-offset) case seperately
+        for (d_i, d) in dest.iter().enumerate() {
+            if d.is_zero() { continue }
+            let real_d_i = d_i as isize + min_value_tmp;
+            let p_i = (real_d_i - min_value) as usize;
+            let mut res = d.clone();
+            res *= &self.values[0];
+            buffer[p_i] = res;
+        }
+
+        // Then the rest
+        for (_, a) in self.values.iter().skip(1).enumerate() {
             if a.is_zero() {
                 continue;
             }
+            source.swap_with_slice(&mut dest);
 
-            buffer_2[0..s].swap_with_slice(&mut buffer_3[0..s]);
-            
-            for ii in 0..(other.values.len() + s-1) {
-                buffer_3[ii].set_zero();
+            for i in 0..tmp_len {
+                dest[i].set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
-                if b.is_zero() {
-                    continue;
-                }
-                for c_i in 0..s {
-                    let c = &buffer_2[c_i];
-                    if c.is_zero() {
-                        continue;
-                    }
-                    let new_i = b_i + c_i;
+                if b.is_zero() { continue; }
+                let real_b_i = b_i as isize + other.offset;
+                for (c_i, c) in source.iter().enumerate() {
+                    if c.is_zero() { continue; }
+                    let real_c_i = c_i as isize + min_value_tmp;
+                    let real_d_i = real_b_i + real_c_i;
+                    let d_i = (real_d_i - min_value_tmp) as usize;
                     let mut res = b.clone();
                     res *= c;
-                    buffer_3[new_i] += res;
+                    dest[d_i] += res;
                 }
             }
-            s += other.values.len() - 1;
-            for c_i in 0..s {
-                let c = &buffer_3[c_i];
-                let mut aa = a.clone();
-                aa.mul_assign(c);
-                buffer[a_i+c_i+1] += aa;
+
+            for (d_i, d) in dest.iter().enumerate() {
+                if d.is_zero() {
+                    continue;
+                }
+                let real_d_i = d_i as isize + min_value_tmp;
+                let mut res = d.clone();
+                res *= a;
+                let p_i = (real_d_i - min_value) as usize;
+                buffer[p_i] += res;
             }
         }
         self.values.clear();
         self.values.extend_from_slice(&buffer[..]);
+        self.offset = min_value;
         buffer.clear();
     }
 
@@ -302,7 +406,7 @@ impl DiceExpression {
                     match name {
                         DoubleOpName::Add => aa.add_inplace(&bb, &mut buffer),
                         DoubleOpName::Mul => aa.mul_inplace(&bb, &mut buffer),
-                        // DoubleOpName::Div => aa / bb,
+                        DoubleOpName::Sub => aa.sub_inplace(&bb, &mut buffer),
                         DoubleOpName::Max => aa.max_inplace(&bb, &mut buffer),
                         DoubleOpName::Min => aa.min_inplace(&bb, &mut buffer),
                         DoubleOpName::MultiAdd => unreachable!(),
@@ -341,14 +445,14 @@ impl DiceExpression {
         self
     }
 
-    // fn div_assign(&mut self, other: &DiceExpression) {
-    //     self.op_double_inplace(other, DoubleOpName::Div);
-    // }
+    fn sub_assign(&mut self, other: &DiceExpression) {
+        self.op_double_inplace(other, DoubleOpName::Sub);
+    }
 
-    // fn div(mut self, other: &DiceExpression) -> Self {
-    //     self.div_assign(other);
-    //     self
-    // }
+    fn sub(mut self, other: &DiceExpression) -> Self {
+        self.sub_assign(other);
+        self
+    }
 
     fn min_assign(&mut self, other: &DiceExpression) {
         self.op_double_inplace(other, DoubleOpName::Min);
@@ -405,13 +509,15 @@ peg::parser! {
     grammar list_parser() for str {
         rule number() -> usize = n:$(['0'..='9']+) {? n.parse::<usize>().or(Err("u32")) }
         pub rule arithmetic() -> DiceExpression = precedence!{
-            x:(@) " "* "+" " "* y:@ { x + &y }
+            x:(@) " "* "+" " "* y:@ { x.add(&y) }
+            x:(@) " "* "-" " "* y:@ { x.sub(&y) }
             --
             x:(@) " "* "*" " "* y:@ { x.mul(&y) }
             --
             x:(@) " "* "x" " "* y:@ { x.multi_add(&y) }
             --
-            n:number() { DiceExpression::new(NoOp::Const(n)) }
+            n:number() { DiceExpression::new(NoOp::Const(n as isize)) }
+            "-" n:number() { DiceExpression::new(NoOp::Const(-(n as isize))) }
             "d" n:number() { DiceExpression::new(NoOp::Dice(Dice::new(n))) }
             "(" " "* e:arithmetic() " "* ")" { e }
         }
@@ -419,9 +525,10 @@ peg::parser! {
 }
 
 fn main() {
-    match "d6xd4".parse::<DiceExpression>() {
+    match "(d3+3)x(d4-d5)".parse::<DiceExpression>() {
         Ok(x) => {
             let res: Dist<f64> = x.evaluate();
+            println!("{:?}", res);
             println!("{}", res.mean());
             // for (i, v) in res.values.iter().enumerate() {
             //     let min_precision = 20;
@@ -431,6 +538,19 @@ fn main() {
         }
         Err(x) => println!("ERR: {}", x),
     }
+    // match "(d3xd3)".parse::<DiceExpression>() {
+    //     Ok(x) => {
+    //         let res: Dist<f64> = x.evaluate();
+    //         // println!("{:?}", res);
+    //         println!("{}", res.mean());
+    //         // for (i, v) in res.values.iter().enumerate() {
+    //         //     let min_precision = 20;
+    //         //     let formatted = format_impl(v, String::new(), 0, min_precision, None);
+    //         //     println!("{} : {}", i, formatted);
+    //         // }
+    //     }
+    //     Err(x) => println!("ERR: {}", x),
+    // }
 
     // let res: Dist<BigRational> = yep.evaluate();
     // println!("mean 2: {}", res.mean());
