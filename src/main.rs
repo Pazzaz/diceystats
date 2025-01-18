@@ -184,19 +184,19 @@ where
 
     fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::add);
-}
+    }
 
     fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::mul);
-}
+    }
 
     fn sub_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::sub);
-}
+    }
 
     fn max_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::max);
-}
+    }
 
     fn min_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::min);
@@ -602,6 +602,24 @@ mod tests {
     #[bench]
     fn f64_30dx30d(b: &mut Bencher) {
         let yep: DiceExpression = "d30xd30".parse().unwrap();
+        b.iter(|| {
+            let res: Dist<f64> = yep.evaluate();
+            test::black_box(res);
+        });
+    }
+
+    #[bench]
+    fn many_additions(b: &mut Bencher) {
+        let yep: DiceExpression = "d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20".parse().unwrap();
+        b.iter(|| {
+            let res: Dist<f64> = yep.evaluate();
+            test::black_box(res);
+        });
+    }
+
+    #[bench]
+    fn many_multiplications(b: &mut Bencher) {
+        let yep: DiceExpression = "d20*d20*d20".parse().unwrap();
         b.iter(|| {
             let res: Dist<f64> = yep.evaluate();
             test::black_box(res);
