@@ -181,48 +181,23 @@ where
         self.offset = min_value;
         buffer.clear();
     }
-}
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
-where
-    for<'a> T: MulAssign<&'a T>,
-{
     fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::add);
-    }
 }
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
-where
-    for<'a> T: MulAssign<&'a T>,
-{
     fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::mul);
-    }
 }
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
-where
-    for<'a> T: MulAssign<&'a T>,
-{
     fn sub_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::sub);
-    }
 }
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
-where
-    for<'a> T: MulAssign<&'a T>,
-{
     fn max_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::max);
-    }
 }
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
-where
-    for<'a> T: MulAssign<&'a T>,
-{
     fn min_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::min);
     }
@@ -275,8 +250,8 @@ where
         for _ in 1..self.offset {
             source.swap_with_slice(&mut dest);
 
-            for i in 0..tmp_len {
-                dest[i].set_zero();
+            for d in dest.iter_mut() {
+                d.set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
                 if b.is_zero() {
@@ -310,14 +285,14 @@ where
         }
 
         // Then the rest
-        for (_, a) in self.values.iter().skip(1).enumerate() {
+        for a in self.values.iter().skip(1) {
             if a.is_zero() {
                 continue;
             }
             source.swap_with_slice(&mut dest);
 
-            for i in 0..tmp_len {
-                dest[i].set_zero();
+            for d in dest.iter_mut() {
+                d.set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
                 if b.is_zero() {
@@ -527,7 +502,7 @@ peg::parser! {
             x:(@) " "* "x" " "* y:@ { x.multi_add(&y) }
             --
             n1:number() "d" n2:number() {
-                let nn1 = DiceExpression::new(NoOp::Const((n1 as isize)));
+                let nn1 = DiceExpression::new(NoOp::Const(n1 as isize));
                 let nn2 = DiceExpression::new(NoOp::Dice(Dice::new(n2)));
                 nn1.multi_add(&nn2)
             }
