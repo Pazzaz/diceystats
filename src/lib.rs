@@ -329,9 +329,15 @@ where
 }
 
 trait Evaluator<T> {
+    const LOSSY: bool;
+    fn to_usize(x: T) -> usize {
+        unreachable!("Only used if operations are LOSSY");
+    }
     fn from_dice(&mut self, d: Dice) -> T;
     fn from_const(&mut self, n: isize) -> T;
-    fn repeat_inplace(&mut self, a: &mut T, b: &T);
+    fn repeat_inplace(&mut self, a: &mut T, b: &T) {
+        unreachable!("Only used if operations are not LOSSY");
+    }
     fn add_inplace(&mut self, a: &mut T, b: &T);
     fn mul_inplace(&mut self, a: &mut T, b: &T);
     fn sub_inplace(&mut self, a: &mut T, b: &T);
@@ -347,6 +353,8 @@ impl<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive> Evaluator<Dis
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
+    const LOSSY: bool = false;
+
     fn from_dice(&mut self, d: Dice) -> Dist<T> {
         d.dist()
     }
@@ -380,7 +388,55 @@ where
     }
 }
 
+
+struct SampleEvaluator<'a, R: Rng + ?Sized> {
+    rng: &'a mut R
+}
+
+impl<'a, R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'a, R> {
+    const LOSSY: bool = true;
+    fn to_usize(x: isize) -> usize {
+        x.try_into().unwrap_or_else(|_| panic!("Can't roll negative amount of dice"))
+    }
+    fn from_dice(&mut self, d: Dice) -> isize {
+        d.sample(self.rng)
+    }
+    
+    fn from_const(&mut self, n: isize) -> isize {
+        n
+    }
+
+    fn repeat_inplace(&mut self, a: &mut isize, b: &isize) {
+        todo!()
+    }
+    
+    fn add_inplace(&mut self, a: &mut isize, b: &isize) {
+        *a += b;
+    }
+    
+    fn mul_inplace(&mut self, a: &mut isize, b: &isize) {
+        *a *= b;
+    }
+    
+    fn sub_inplace(&mut self, a: &mut isize, b: &isize) {
+        *a -= b;
+    }
+    
+    fn max_inplace(&mut self, a: &mut isize, b: &isize) {
+        *a = isize::max(*a, *b);
+    }
+    
+    fn min_inplace(&mut self, a: &mut isize, b: &isize) {
+        *a = isize::min(*a, *b);
+    }
+}
+
+
 impl DiceExpression {
+    pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
+        let mut e = SampleEvaluator { rng };
+        self.evaluate_generic(&mut e)
+    }
 
     pub fn dist<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive>(&self) -> Dist<T>
     where
@@ -394,6 +450,7 @@ impl DiceExpression {
         enum Stage {
             First,
             Second,
+            Third,
         }
         let mut stack: Vec<(Part, Stage)> = vec![(*self.parts.last().unwrap(), Stage::First)];
         let mut values: Vec<T> = Vec::new();
@@ -406,14 +463,40 @@ impl DiceExpression {
                         Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }),
                         Stage::Second,
                     ));
-                    stack.push((self.parts[a], Stage::First));
-                    stack.push((self.parts[b], Stage::First));
+                    if Q::LOSSY {
+                        stack.push((self.parts[a], Stage::First));
+                    } else {
+                        stack.push((self.parts[a], Stage::First));
+                        stack.push((self.parts[b], Stage::First));
+                    }
                 }
-                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, .. }), Stage::Second) => {
-                    let mut a = values.pop().unwrap();
-                    let b = values.pop().unwrap();
-                    state.repeat_inplace(&mut a, &b);
-                    values.push(a);
+                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, b, .. }), Stage::Second) => {
+                    if Q::LOSSY {
+                        let aa = Q::to_usize(values.pop().unwrap());
+                        // TODO: Stop sending around all these parts, this is a HACK.
+                        stack.push((
+                            Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a: aa, b: aa }),
+                            Stage::Third,
+                        ));
+                        for _ in 0..aa {
+                            stack.push((self.parts[b], Stage::First));
+                        }
+                    } else {
+                        let mut aa = values.pop().unwrap();
+                        let bb = values.pop().unwrap();
+                        state.repeat_inplace(&mut aa, &bb);
+                        values.push(aa);
+                    }
+                }
+                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b}), Stage::Third) => {
+                    debug_assert!(a == b);
+                    debug_assert!(a != 0);
+                    let mut res = values.pop().unwrap();
+                    for _ in 1..a {
+                        let v = values.pop().unwrap();
+                        state.add_inplace(&mut res, &v);
+                    }
+                    values.push(res);
                 }
                 (Part::Double(double_op), Stage::First) => {
                     stack.push((Part::Double(double_op), Stage::Second));
@@ -433,6 +516,7 @@ impl DiceExpression {
                     }
                     values.push(aa);
                 }
+                (_, Stage::Third) => unreachable!(),
             };
         }
         values.pop().unwrap()
