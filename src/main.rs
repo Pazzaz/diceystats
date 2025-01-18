@@ -3,9 +3,9 @@ use num::{BigRational, FromPrimitive, Num};
 use peg::str::LineCol;
 use rand::Rng;
 use std::{
-    ops::{Add, AddAssign, Mul, MulAssign}, str::FromStr,
+    ops::{Add, AddAssign, Mul, MulAssign, Sub},
+    str::FromStr,
 };
-use std::ops::Sub;
 
 use num::Zero;
 
@@ -89,7 +89,7 @@ struct Dist<T> {
     offset: isize,
 }
 
-impl <T> Dist<T> {
+impl<T> Dist<T> {
     fn max_value(&self) -> isize {
         self.offset + (self.values.len() as isize) - 1
     }
@@ -106,7 +106,10 @@ impl<T: Num + FromPrimitive> Dist<T> {
     fn uniform(min: isize, max: isize) -> Self {
         debug_assert!(min <= max);
         let choices = (max - min + 1) as usize;
-        Dist { values: (min..=max).map(|_| T::one() / T::from_usize(choices).unwrap()).collect(), offset: min }
+        Dist {
+            values: (min..=max).map(|_| T::one() / T::from_usize(choices).unwrap()).collect(),
+            offset: min,
+        }
     }
 }
 
@@ -147,10 +150,7 @@ where
             let oa = self.offset;
             let lb = (other.values.len() - 1) as isize;
             let ob = other.offset;
-            f(oa + la, ob + lb)
-                .max(f(oa + la, ob))
-                .max(f(oa, ob + lb))
-                .max(f(oa, ob))
+            f(oa + la, ob + lb).max(f(oa + la, ob)).max(f(oa, ob + lb)).max(f(oa, ob))
         };
 
         let min_value = {
@@ -158,17 +158,18 @@ where
             let oa = self.offset;
             let lb = (other.values.len() - 1) as isize;
             let ob = other.offset;
-            f(oa + la, ob + lb)
-                .min(f(oa + la, ob))
-                .min(f(oa, ob + lb))
-                .min(f(oa, ob))
+            f(oa + la, ob + lb).min(f(oa + la, ob)).min(f(oa, ob + lb)).min(f(oa, ob))
         };
 
         buffer.resize((largest_value - min_value + 1) as usize, T::zero());
         for (a_i, a) in self.values.iter().enumerate() {
-            if a.is_zero() { continue }
+            if a.is_zero() {
+                continue;
+            }
             for (b_i, b) in other.values.iter().enumerate() {
-                if b.is_zero() { continue }
+                if b.is_zero() {
+                    continue;
+                }
                 let new_value = f(a_i as isize + self.offset, b_i as isize + other.offset);
                 let mut res: T = a.clone();
                 res.mul_assign(b);
@@ -241,17 +242,13 @@ where
         //   [ ]           self.max_value * other.min_value  self.max_value * other.max_value
         //     [ ]         self.min_value * other.min_value  self.max_value * other.max_value
 
-
-        let min_value =
-            (self.max_value() * other.min_value())
+        let min_value = (self.max_value() * other.min_value())
             .min(self.max_value() * other.min_value())
             .min(self.min_value() * other.min_value());
 
-        let max_value =
-            (self.min_value() * other.max_value())
+        let max_value = (self.min_value() * other.max_value())
             .max(self.max_value() * other.max_value())
             .max(self.max_value() * other.max_value());
-
 
         if max_value == min_value {
             *self = Dist::constant(max_value);
@@ -282,10 +279,14 @@ where
                 dest[i].set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
-                if b.is_zero() { continue; }
+                if b.is_zero() {
+                    continue;
+                }
                 let real_b_i = b_i as isize + other.offset;
                 for (c_i, c) in source.iter().enumerate() {
-                    if c.is_zero() { continue; }
+                    if c.is_zero() {
+                        continue;
+                    }
                     let real_c_i = c_i as isize + min_value_tmp;
                     let real_d_i = real_b_i + real_c_i;
                     let d_i = (real_d_i - min_value_tmp) as usize;
@@ -298,7 +299,9 @@ where
 
         // We handle first (non-offset) case seperately
         for (d_i, d) in dest.iter().enumerate() {
-            if d.is_zero() { continue }
+            if d.is_zero() {
+                continue;
+            }
             let real_d_i = d_i as isize + min_value_tmp;
             let p_i = (real_d_i - min_value) as usize;
             let mut res = d.clone();
@@ -317,10 +320,14 @@ where
                 dest[i].set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
-                if b.is_zero() { continue; }
+                if b.is_zero() {
+                    continue;
+                }
                 let real_b_i = b_i as isize + other.offset;
                 for (c_i, c) in source.iter().enumerate() {
-                    if c.is_zero() { continue; }
+                    if c.is_zero() {
+                        continue;
+                    }
                     let real_c_i = c_i as isize + min_value_tmp;
                     let real_d_i = real_b_i + real_c_i;
                     let d_i = (real_d_i - min_value_tmp) as usize;
@@ -364,7 +371,9 @@ where
 }
 
 impl DiceExpression {
-    fn evaluate<T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign + std::fmt::Debug>(
+    fn evaluate<
+        T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign + std::fmt::Debug,
+    >(
         &self,
     ) -> Dist<T>
     where
@@ -627,12 +636,18 @@ mod tests {
     #[test]
     fn repeat_simple() {
         let yep: DiceExpression = "d9xd10".parse().unwrap();
-        assert_eq!(yep.evaluate::<BigRational>().mean(), BigRational::new(BigInt::from(55), BigInt::from(2)));
+        assert_eq!(
+            yep.evaluate::<BigRational>().mean(),
+            BigRational::new(BigInt::from(55), BigInt::from(2))
+        );
     }
 
     #[test]
     fn rational_30dx30d() {
         let yep: DiceExpression = "d30xd30".parse().unwrap();
-        assert_eq!(yep.evaluate::<BigRational>().mean(), BigRational::new(BigInt::from(961), BigInt::from(4)));
+        assert_eq!(
+            yep.evaluate::<BigRational>().mean(),
+            BigRational::new(BigInt::from(961), BigInt::from(4))
+        );
     }
 }
