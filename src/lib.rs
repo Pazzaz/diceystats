@@ -401,7 +401,7 @@ impl<'a, R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'a, R> {
     fn from_dice(&mut self, d: Dice) -> isize {
         d.sample(self.rng)
     }
-    
+
     fn from_const(&mut self, n: isize) -> isize {
         n
     }
@@ -409,28 +409,62 @@ impl<'a, R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'a, R> {
     fn repeat_inplace(&mut self, a: &mut isize, b: &isize) {
         todo!()
     }
-    
+
     fn add_inplace(&mut self, a: &mut isize, b: &isize) {
         *a += b;
     }
-    
+
     fn mul_inplace(&mut self, a: &mut isize, b: &isize) {
         *a *= b;
     }
-    
+
     fn sub_inplace(&mut self, a: &mut isize, b: &isize) {
         *a -= b;
     }
-    
+
     fn max_inplace(&mut self, a: &mut isize, b: &isize) {
         *a = isize::max(*a, *b);
     }
-    
+
     fn min_inplace(&mut self, a: &mut isize, b: &isize) {
         *a = isize::min(*a, *b);
     }
 }
 
+enum EvaluateStage {
+    Dice(Dice),
+    Const(isize),
+    MultiAddCreate(usize, usize),
+    MultiAddCollect,
+    MultiAddCollectPartial(usize),
+    MultiAddExtra(usize),
+
+    AddCreate(usize, usize),
+    AddCollect,
+    SubCreate(usize, usize),
+    SubCollect,
+    MulCreate(usize, usize),
+    MulCollect,
+    MaxCreate(usize, usize),
+    MaxCollect,
+    MinCreate(usize, usize),
+    MinCollect,
+}
+
+impl EvaluateStage {
+    fn collect_from(part: Part) -> Self {
+        match part {
+            Part::None(NoOp::Dice(dice)) => EvaluateStage::Dice(dice),
+            Part::None(NoOp::Const(n)) => EvaluateStage::Const(n),
+            Part::Double(DoubleOp { name: DoubleOpName::Add, a, b }) => EvaluateStage::AddCreate(a, b),
+            Part::Double(DoubleOp { name: DoubleOpName::Sub, a, b }) => EvaluateStage::SubCreate(a, b),
+            Part::Double(DoubleOp { name: DoubleOpName::Mul, a, b }) => EvaluateStage::MulCreate(a, b),
+            Part::Double(DoubleOp { name: DoubleOpName::Min, a, b }) => EvaluateStage::MinCreate(a, b),
+            Part::Double(DoubleOp { name: DoubleOpName::Max, a, b }) => EvaluateStage::MaxCreate(a, b),
+            Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }) => EvaluateStage::MultiAddCreate(a, b),
+        }
+    }
+}
 
 impl DiceExpression {
     pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
@@ -447,76 +481,101 @@ impl DiceExpression {
     }
 
     fn evaluate_generic<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
-        enum Stage {
-            First,
-            Second,
-            Third,
-        }
-        let mut stack: Vec<(Part, Stage)> = vec![(*self.parts.last().unwrap(), Stage::First)];
+        let mut stack: Vec<EvaluateStage> = vec![EvaluateStage::collect_from(*self.parts.last().unwrap())];
         let mut values: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {
             match x {
-                (Part::None(NoOp::Dice(dice)), _) => values.push(state.from_dice(dice)),
-                (Part::None(NoOp::Const(n)), _) => values.push(state.from_const(n)),
-                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }), Stage::First) => {
-                    stack.push((
-                        Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }),
-                        Stage::Second,
-                    ));
+                EvaluateStage::Dice(dice) => values.push(state.from_dice(dice)),
+                EvaluateStage::Const(n) => values.push(state.from_const(n)),
+                EvaluateStage::MultiAddCreate(a, b) => {
                     if Q::LOSSY {
-                        stack.push((self.parts[a], Stage::First));
+                        stack.push(EvaluateStage::MultiAddCollectPartial(b));
+                        stack.push(EvaluateStage::collect_from(self.parts[a]));
                     } else {
-                        stack.push((self.parts[a], Stage::First));
-                        stack.push((self.parts[b], Stage::First));
+                        stack.push(EvaluateStage::MultiAddCollect);
+                        stack.push(EvaluateStage::collect_from(self.parts[a]));
+                        stack.push(EvaluateStage::collect_from(self.parts[b]));
                     }
                 }
-                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, b, .. }), Stage::Second) => {
-                    if Q::LOSSY {
-                        let aa = Q::to_usize(values.pop().unwrap());
-                        // TODO: Stop sending around all these parts, this is a HACK.
-                        stack.push((
-                            Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a: aa, b: aa }),
-                            Stage::Third,
-                        ));
-                        for _ in 0..aa {
-                            stack.push((self.parts[b], Stage::First));
-                        }
-                    } else {
-                        let mut aa = values.pop().unwrap();
-                        let bb = values.pop().unwrap();
-                        state.repeat_inplace(&mut aa, &bb);
-                        values.push(aa);
+                EvaluateStage::MultiAddCollectPartial(b) => {
+                    assert!(Q::LOSSY);
+                    let aa = Q::to_usize(values.pop().unwrap());
+                    stack.push(EvaluateStage::MultiAddExtra(aa));
+                    for _ in 0..aa {
+                        stack.push(EvaluateStage::collect_from(self.parts[b]));
                     }
                 }
-                (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b}), Stage::Third) => {
-                    debug_assert!(a == b);
-                    debug_assert!(a != 0);
+                EvaluateStage::MultiAddCollect => {
+                    assert!(!Q::LOSSY);
+                    let mut aa = values.pop().unwrap();
+                    let bb = values.pop().unwrap();
+                    state.repeat_inplace(&mut aa, &bb);
+                    values.push(aa);
+                }
+                EvaluateStage::MultiAddExtra(aa) => {
+                    debug_assert!(aa != 0);
                     let mut res = values.pop().unwrap();
-                    for _ in 1..a {
+                    for _ in 1..aa {
                         let v = values.pop().unwrap();
                         state.add_inplace(&mut res, &v);
                     }
                     values.push(res);
                 }
-                (Part::Double(double_op), Stage::First) => {
-                    stack.push((Part::Double(double_op), Stage::Second));
-                    stack.push((self.parts[double_op.a], Stage::First));
-                    stack.push((self.parts[double_op.b], Stage::First));
+                EvaluateStage::AddCreate(a, b) => {
+                    stack.push(EvaluateStage::AddCollect);
+                    stack.push(EvaluateStage::collect_from(self.parts[a]));
+                    stack.push(EvaluateStage::collect_from(self.parts[b]));
                 }
-                (Part::Double(DoubleOp { name, .. }), Stage::Second) => {
+                EvaluateStage::MulCreate(a, b) => {
+                    stack.push(EvaluateStage::MulCollect);
+                    stack.push(EvaluateStage::collect_from(self.parts[a]));
+                    stack.push(EvaluateStage::collect_from(self.parts[b]));
+                }
+                EvaluateStage::SubCreate(a, b) => {
+                    stack.push(EvaluateStage::SubCollect);
+                    stack.push(EvaluateStage::collect_from(self.parts[a]));
+                    stack.push(EvaluateStage::collect_from(self.parts[b]));
+                }
+                EvaluateStage::MinCreate(a, b) => {
+                    stack.push(EvaluateStage::MinCollect);
+                    stack.push(EvaluateStage::collect_from(self.parts[a]));
+                    stack.push(EvaluateStage::collect_from(self.parts[b]));
+                }
+                EvaluateStage::MaxCreate(a, b) => {
+                    stack.push(EvaluateStage::MaxCollect);
+                    stack.push(EvaluateStage::collect_from(self.parts[a]));
+                    stack.push(EvaluateStage::collect_from(self.parts[b]));
+                }
+                EvaluateStage::AddCollect => {
                     let mut aa = values.pop().unwrap();
                     let bb = values.pop().unwrap();
-                    match name {
-                        DoubleOpName::Add => state.add_inplace(&mut aa, &bb),
-                        DoubleOpName::Mul => state.mul_inplace(&mut aa, &bb),
-                        DoubleOpName::Sub => state.sub_inplace(&mut aa, &bb),
-                        DoubleOpName::Max => state.max_inplace(&mut aa, &bb),
-                        DoubleOpName::Min => state.min_inplace(&mut aa, &bb),
-                        DoubleOpName::MultiAdd => unreachable!(),
-                    }
+                    state.add_inplace(&mut aa, &bb);
                     values.push(aa);
                 }
-                (_, Stage::Third) => unreachable!(),
+                EvaluateStage::MulCollect => {
+                    let mut aa = values.pop().unwrap();
+                    let bb = values.pop().unwrap();
+                    state.mul_inplace(&mut aa, &bb);
+                    values.push(aa);
+                }
+                EvaluateStage::SubCollect => {
+                    let mut aa = values.pop().unwrap();
+                    let bb = values.pop().unwrap();
+                    state.sub_inplace(&mut aa, &bb);
+                    values.push(aa);
+                }
+                EvaluateStage::MinCollect => {
+                    let mut aa = values.pop().unwrap();
+                    let bb = values.pop().unwrap();
+                    state.min_inplace(&mut aa, &bb);
+                    values.push(aa);
+                }
+                EvaluateStage::MaxCollect => {
+                    let mut aa = values.pop().unwrap();
+                    let bb = values.pop().unwrap();
+                    state.max_inplace(&mut aa, &bb);
+                    values.push(aa);
+                }
             };
         }
         values.pop().unwrap()
