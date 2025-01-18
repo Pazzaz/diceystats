@@ -328,26 +328,79 @@ where
     }
 }
 
+trait Evaluator<T> {
+    fn from_dice(&mut self, d: Dice) -> T;
+    fn from_const(&mut self, n: isize) -> T;
+    fn repeat_inplace(&mut self, a: &mut T, b: &T);
+    fn add_inplace(&mut self, a: &mut T, b: &T);
+    fn mul_inplace(&mut self, a: &mut T, b: &T);
+    fn sub_inplace(&mut self, a: &mut T, b: &T);
+    fn max_inplace(&mut self, a: &mut T, b: &T);
+    fn min_inplace(&mut self, a: &mut T, b: &T);
+}
+
+struct DistEvaluator<T> {
+    buffer: Vec<T>
+}
+
+impl<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive> Evaluator<Dist<T>> for DistEvaluator<T>
+where
+    for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
+{
+    fn from_dice(&mut self, d: Dice) -> Dist<T> {
+        d.dist()
+    }
+
+    fn from_const(&mut self, n: isize) -> Dist<T> {
+        Dist::constant(n)
+    }
+
+    fn repeat_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.repeat(b, &mut self.buffer);
+    }
+
+    fn add_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.add_inplace(b, &mut self.buffer);
+    }
+
+    fn mul_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.mul_inplace(b, &mut self.buffer);
+    }
+
+    fn sub_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.sub_inplace(b, &mut self.buffer);
+    }
+
+    fn max_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.max_inplace(b, &mut self.buffer);
+    }
+
+    fn min_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.min_inplace(b, &mut self.buffer);
+    }
+}
+
 impl DiceExpression {
-    pub fn evaluate<
-        T: Num + Clone + MulAssign + PartialOrd + FromPrimitive + AddAssign + std::fmt::Debug,
-    >(
-        &self,
-    ) -> Dist<T>
+
+    pub fn dist<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive>(&self) -> Dist<T>
     where
-        for<'a> T: AddAssign<&'a T> + MulAssign<&'a T>,
+        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
     {
+        let mut e = DistEvaluator { buffer: Vec::new() };
+        self.evaluate_generic(&mut e)
+    }
+
+    fn evaluate_generic<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
         enum Stage {
             First,
             Second,
         }
         let mut stack: Vec<(Part, Stage)> = vec![(*self.parts.last().unwrap(), Stage::First)];
-        let mut values: Vec<Dist<T>> = Vec::new();
-        let mut buffer: Vec<T> = Vec::new();
+        let mut values: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {
             match x {
-                (Part::None(NoOp::Dice(dice)), _) => values.push(dice.dist()),
-                (Part::None(NoOp::Const(n)), _) => values.push(Dist::constant(n)),
+                (Part::None(NoOp::Dice(dice)), _) => values.push(state.from_dice(dice)),
+                (Part::None(NoOp::Const(n)), _) => values.push(state.from_const(n)),
                 (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }), Stage::First) => {
                     stack.push((
                         Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }),
@@ -357,10 +410,10 @@ impl DiceExpression {
                     stack.push((self.parts[b], Stage::First));
                 }
                 (Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, .. }), Stage::Second) => {
-                    let mut repetitions = values.pop().unwrap();
+                    let mut a = values.pop().unwrap();
                     let b = values.pop().unwrap();
-                    repetitions.repeat(&b, &mut buffer);
-                    values.push(repetitions);
+                    state.repeat_inplace(&mut a, &b);
+                    values.push(a);
                 }
                 (Part::Double(double_op), Stage::First) => {
                     stack.push((Part::Double(double_op), Stage::Second));
@@ -371,11 +424,11 @@ impl DiceExpression {
                     let mut aa = values.pop().unwrap();
                     let bb = values.pop().unwrap();
                     match name {
-                        DoubleOpName::Add => aa.add_inplace(&bb, &mut buffer),
-                        DoubleOpName::Mul => aa.mul_inplace(&bb, &mut buffer),
-                        DoubleOpName::Sub => aa.sub_inplace(&bb, &mut buffer),
-                        DoubleOpName::Max => aa.max_inplace(&bb, &mut buffer),
-                        DoubleOpName::Min => aa.min_inplace(&bb, &mut buffer),
+                        DoubleOpName::Add => state.add_inplace(&mut aa, &bb),
+                        DoubleOpName::Mul => state.mul_inplace(&mut aa, &bb),
+                        DoubleOpName::Sub => state.sub_inplace(&mut aa, &bb),
+                        DoubleOpName::Max => state.max_inplace(&mut aa, &bb),
+                        DoubleOpName::Min => state.min_inplace(&mut aa, &bb),
                         DoubleOpName::MultiAdd => unreachable!(),
                     }
                     values.push(aa);
@@ -507,7 +560,7 @@ mod tests {
     fn eval_6dx6d(b: &mut Bencher) {
         let yep: DiceExpression = "d6xd6".parse().unwrap();
         b.iter(|| {
-            let res: Dist<BigRational> = yep.evaluate();
+            let res: Dist<BigRational> = yep.dist();
             test::black_box(res);
         });
     }
@@ -516,7 +569,7 @@ mod tests {
     fn f64_30dx30d(b: &mut Bencher) {
         let yep: DiceExpression = "d30xd30".parse().unwrap();
         b.iter(|| {
-            let res: Dist<f64> = yep.evaluate();
+            let res: Dist<f64> = yep.dist();
             test::black_box(res);
         });
     }
@@ -525,7 +578,7 @@ mod tests {
     fn many_additions(b: &mut Bencher) {
         let yep: DiceExpression = "d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20".parse().unwrap();
         b.iter(|| {
-            let res: Dist<f64> = yep.evaluate();
+            let res: Dist<f64> = yep.dist();
             test::black_box(res);
         });
     }
@@ -534,7 +587,7 @@ mod tests {
     fn many_multiplications(b: &mut Bencher) {
         let yep: DiceExpression = "d20*d20*d20".parse().unwrap();
         b.iter(|| {
-            let res: Dist<f64> = yep.evaluate();
+            let res: Dist<f64> = yep.dist();
             test::black_box(res);
         });
     }
@@ -551,7 +604,7 @@ mod tests {
     fn repeat_simple() {
         let yep: DiceExpression = "d9xd10".parse().unwrap();
         assert_eq!(
-            yep.evaluate::<BigRational>().mean(),
+            yep.dist::<BigRational>().mean(),
             BigRational::new(BigInt::from(55), BigInt::from(2))
         );
     }
@@ -560,7 +613,7 @@ mod tests {
     fn rational_30dx30d() {
         let yep: DiceExpression = "d30xd30".parse().unwrap();
         assert_eq!(
-            yep.evaluate::<BigRational>().mean(),
+            yep.dist::<BigRational>().mean(),
             BigRational::new(BigInt::from(961), BigInt::from(4))
         );
     }
