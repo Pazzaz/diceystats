@@ -1,5 +1,4 @@
-use dicers::{DiceExpression, Dist};
-use num::BigRational;
+use dicers::DiceExpression;
 use rand::thread_rng;
 
 fn main() {

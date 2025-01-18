@@ -37,15 +37,6 @@ enum NoOp {
     Const(isize),
 }
 
-impl NoOp {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
-        match *self {
-            NoOp::Dice(dice) => dice.sample(rng),
-            NoOp::Const(x) => x,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 struct DoubleOp {
     name: DoubleOpName,
@@ -330,12 +321,12 @@ where
 
 trait Evaluator<T> {
     const LOSSY: bool;
-    fn to_usize(x: T) -> usize {
+    fn to_usize(_x: T) -> usize {
         unreachable!("Only used if operations are LOSSY");
     }
-    fn from_dice(&mut self, d: Dice) -> T;
-    fn from_const(&mut self, n: isize) -> T;
-    fn repeat_inplace(&mut self, a: &mut T, b: &T) {
+    fn dice(&mut self, d: Dice) -> T;
+    fn constant(&mut self, n: isize) -> T;
+    fn repeat_inplace(&mut self, _a: &mut T, _b: &T) {
         unreachable!("Only used if operations are not LOSSY");
     }
     fn add_inplace(&mut self, a: &mut T, b: &T);
@@ -355,11 +346,11 @@ where
 {
     const LOSSY: bool = false;
 
-    fn from_dice(&mut self, d: Dice) -> Dist<T> {
+    fn dice(&mut self, d: Dice) -> Dist<T> {
         d.dist()
     }
 
-    fn from_const(&mut self, n: isize) -> Dist<T> {
+    fn constant(&mut self, n: isize) -> Dist<T> {
         Dist::constant(n)
     }
 
@@ -393,21 +384,17 @@ struct SampleEvaluator<'a, R: Rng + ?Sized> {
     rng: &'a mut R
 }
 
-impl<'a, R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'a, R> {
+impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
     const LOSSY: bool = true;
     fn to_usize(x: isize) -> usize {
         x.try_into().unwrap_or_else(|_| panic!("Can't roll negative amount of dice"))
     }
-    fn from_dice(&mut self, d: Dice) -> isize {
+    fn dice(&mut self, d: Dice) -> isize {
         d.sample(self.rng)
     }
 
-    fn from_const(&mut self, n: isize) -> isize {
+    fn constant(&mut self, n: isize) -> isize {
         n
-    }
-
-    fn repeat_inplace(&mut self, a: &mut isize, b: &isize) {
-        todo!()
     }
 
     fn add_inplace(&mut self, a: &mut isize, b: &isize) {
@@ -440,14 +427,14 @@ enum EvaluateStage {
     MultiAddExtra(usize),
 
     AddCreate(usize, usize),
-    AddCollect,
     SubCreate(usize, usize),
-    SubCollect,
     MulCreate(usize, usize),
-    MulCollect,
     MaxCreate(usize, usize),
-    MaxCollect,
     MinCreate(usize, usize),
+    AddCollect,
+    SubCollect,
+    MulCollect,
+    MaxCollect,
     MinCollect,
 }
 
@@ -472,9 +459,9 @@ impl DiceExpression {
         self.evaluate_generic(&mut e)
     }
 
-    pub fn dist<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive>(&self) -> Dist<T>
+    pub fn dist<T>(&self) -> Dist<T>
     where
-        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
+        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive,
     {
         let mut e = DistEvaluator { buffer: Vec::new() };
         self.evaluate_generic(&mut e)
@@ -485,8 +472,8 @@ impl DiceExpression {
         let mut values: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {
             match x {
-                EvaluateStage::Dice(dice) => values.push(state.from_dice(dice)),
-                EvaluateStage::Const(n) => values.push(state.from_const(n)),
+                EvaluateStage::Dice(dice) => values.push(state.dice(dice)),
+                EvaluateStage::Const(n) => values.push(state.constant(n)),
                 EvaluateStage::MultiAddCreate(a, b) => {
                     if Q::LOSSY {
                         stack.push(EvaluateStage::MultiAddCollectPartial(b));
