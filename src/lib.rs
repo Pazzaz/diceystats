@@ -1,3 +1,38 @@
+//! This crate is used to simulate dice rolls using [dice notation](https://en.wikipedia.org/wiki/Dice_notation), in the style of Dungeons and Dragons.
+//! 
+//! The main types are
+//! - [DiceExpression], a sequence of interacting dice rolls
+//! - [Dist], a discrete distribution of outcomes
+//! 
+//! # Usage
+//! ```
+//! use dicers::{DiceExpression, Dist};
+//! use num::BigRational;
+//! use rand::thread_rng;
+//! 
+//! // Roll a four side die and a five sided die, sum the result.
+//! // Then roll that number of six sided dice, and sum those rolls.
+//! let example = "(d4 + d5)xd6";
+//! 
+//! // We first parse it into a `DiceExpression`
+//! let d4_d5_d6: DiceExpression = example.parse().unwrap();
+//! 
+//! // Then we can sample from it
+//! let mut rng = thread_rng();
+//! let result = d4_d5_d6.sample(&mut rng);
+//! assert!(2 <= result && result <= 54);
+//! 
+//! // Or calculate the whole distribution
+//! let dist: Dist<f64> = d4_d5_d6.dist();
+//! assert!((dist.mean() - 19.25).abs() <= 0.01);
+//! 
+//! // If we want to be more precise we can use arbitrary precision numbers
+//! let dist: Dist<BigRational> = d4_d5_d6.dist();
+//! assert_eq!(dist.mean(), "77/4".parse().unwrap());
+//! ```
+
+
+
 #![feature(test)]
 use num::{FromPrimitive, Num};
 use peg::str::LineCol;
@@ -66,24 +101,47 @@ impl Part {
     }
 }
 
+/// A sequence of interacting dice rolls
+/// 
+/// You can also display a `DiceExpression` in a simplified form
+/// ```
+/// # use dicers::DiceExpression;
+/// let x: DiceExpression = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
+/// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)")
+/// ```
 #[derive(Debug, Clone)]
 pub struct DiceExpression {
     parts: Vec<Part>,
 }
 
-#[derive(Debug, Clone)]
+/// A discrete distribution of outcomes
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dist<T> {
-    pub values: Vec<T>,
+    values: Vec<T>,
     offset: isize,
 }
 
 impl<T> Dist<T> {
-    fn max_value(&self) -> isize {
+    /// The maximum value in the distributions support
+    pub fn max_value(&self) -> isize {
         self.offset + (self.values.len() as isize) - 1
     }
 
-    fn min_value(&self) -> isize {
+    /// The minimum value in the distributions support
+    pub fn min_value(&self) -> isize {
         self.offset
+    }
+
+    /// Iterate through the distributions support, with each outcomes probability
+    pub fn iter_enumerate(&self) -> impl Iterator<Item=(isize, &T)> {
+        self.values.iter().enumerate().map(|(x_i, x)| {
+            (x_i as isize + self.offset, x)
+        })
+    }
+
+    /// The chance that `n` will be sampled from the distribution. Returns `None` if ouside the distributions support.
+    pub fn chance(&self, n: isize) -> Option<&T> {
+        usize::try_from(n + self.offset).ok().and_then(|x| self.values.get(x))
     }
 }
 
@@ -537,6 +595,20 @@ impl DiceExpression {
         self.evaluate_generic(&mut e)
     }
 
+    /// Calculate the probability distribution of the outcomes of the expression.
+    /// 
+    /// The function is generic over the number type used to represent probabilities.
+    /// 
+    /// ## Example
+    /// ```
+    /// use dicers::{DiceExpression, Dist};
+    /// use num::BigRational;
+    /// 
+    /// let expr: DiceExpression = "d10 * d4".parse().unwrap();
+    /// let fast_dist: Dist<f64> = expr.dist();
+    /// let exact_dist: Dist<BigRational> = expr.dist();
+    /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
+    /// ```
     pub fn dist<T>(&self) -> Dist<T>
     where
         for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive,
@@ -545,6 +617,7 @@ impl DiceExpression {
         self.evaluate_generic(&mut e)
     }
 
+    // Traverses the tree with an Evaluator.
     fn evaluate_generic<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
         let mut stack: Vec<EvaluateStage> = vec![EvaluateStage::collect_from(*self.parts.last().unwrap())];
         let mut values: Vec<T> = Vec::new();
