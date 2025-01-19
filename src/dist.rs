@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Mul, MulAssign, Sub};
+use std::{fmt::Debug, ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign}};
 
 use num::{FromPrimitive, Num};
 use rand::{
@@ -23,6 +23,44 @@ where
     /// Convert to a [`Distribution`]. Useful for sampling.
     pub fn to_distribution(self) -> impl Distribution<isize> {
         WeightedIndex::new(self.values).unwrap().map(move |x| x as isize + self.offset)
+    }
+}
+
+impl<T: num::Zero + PartialOrd + Debug> Dist<T>
+where
+    for<'a> T: AddAssign<&'a T> + SubAssign<&'a T>,
+{
+    /// Distance between two distributions, measured by elementwise difference of probabilities
+    /// ```
+    /// use dicers::{DiceExpression, Dist};
+    /// use num::BigRational;
+    /// let expr1 = "d4xd3".parse::<DiceExpression>().unwrap();
+    /// let expr2 = "d4+d6".parse::<DiceExpression>().unwrap();
+    /// let d: BigRational = expr1.dist().distance(&expr2.dist());
+    /// assert_eq!(d, "25/54".parse().unwrap())
+    /// ```
+    pub fn distance(&self, other: &Dist<T>) -> T {
+        let mut d = T::zero();
+        let a = self.min_value().min(other.min_value());
+        let b = self.max_value().max(other.max_value());
+        for i in a..b {
+            if i < self.min_value() || self.max_value() < i {
+                d += other.chance(i).unwrap();
+            } else if i < other.min_value() || other.max_value() < i  {
+                d += self.chance(i).unwrap();
+            } else {
+                let i1 = self.chance(i).unwrap();
+                let i2 = other.chance(i).unwrap();
+                if i1 < i2 {
+                    d += i2;
+                    d -= i1;
+                } else if i2 < i1 {
+                    d += i1;
+                    d -= i2;
+                };
+            }
+        }
+        d
     }
 }
 
@@ -52,7 +90,7 @@ impl<T> Dist<T> {
     /// assert_eq!(1.0 / 10.0, *p);
     /// ```
     pub fn chance(&self, n: isize) -> Option<&T> {
-        usize::try_from(n + self.offset).ok().and_then(|x| self.values.get(x))
+        usize::try_from(n - self.offset).ok().and_then(|x| self.values.get(x))
     }
 }
 
