@@ -77,32 +77,19 @@ where
     ) {
         debug_assert!(buffer.is_empty());
 
-        let largest_value = {
-            let la = (self.values.len() - 1) as isize;
-            let oa = self.offset;
-            let lb = (other.values.len() - 1) as isize;
-            let ob = other.offset;
-            f(oa + la, ob + lb).max(f(oa + la, ob)).max(f(oa, ob + lb)).max(f(oa, ob))
-        };
+        let sl = self.max_value();
+        let sm = self.min_value();
+        let ol = other.max_value();
+        let om = other.min_value();
+        let max_value
+            = f(sl, ol).max(f(sl, om)).max(f(sm, ol)).max(f(sm, om));
+        let min_value
+            = f(sl, ol).min(f(sl, om)).min(f(sm, ol)).min(f(sm, om));
 
-        let min_value = {
-            let la = (self.values.len() - 1) as isize;
-            let oa = self.offset;
-            let lb = (other.values.len() - 1) as isize;
-            let ob = other.offset;
-            f(oa + la, ob + lb).min(f(oa + la, ob)).min(f(oa, ob + lb)).min(f(oa, ob))
-        };
-
-        buffer.resize((largest_value - min_value + 1) as usize, T::zero());
-        for (a_i, a) in self.values.iter().enumerate() {
-            if a.is_zero() {
-                continue;
-            }
-            for (b_i, b) in other.values.iter().enumerate() {
-                if b.is_zero() {
-                    continue;
-                }
-                let new_value = f(a_i as isize + self.offset, b_i as isize + other.offset);
+        buffer.resize((max_value - min_value + 1) as usize, T::zero());
+        for (a_i, a) in self.iter_enumerate().filter(|x| x.1.is_zero()) {
+            for (b_i, b) in other.iter_enumerate().filter(|x| x.1.is_zero()) {
+                let new_value = f(a_i, b_i);
                 let mut res: T = a.clone();
                 res.mul_assign(b);
                 buffer[(new_value - min_value) as usize] += res;
