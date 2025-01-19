@@ -87,8 +87,8 @@ where
             = f(sl, ol).min(f(sl, om)).min(f(sm, ol)).min(f(sm, om));
 
         buffer.resize((max_value - min_value + 1) as usize, T::zero());
-        for (a_i, a) in self.iter_enumerate().filter(|x| x.1.is_zero()) {
-            for (b_i, b) in other.iter_enumerate().filter(|x| x.1.is_zero()) {
+        for (a_i, a) in self.iter_enumerate().filter(|x| !x.1.is_zero()) {
+            for (b_i, b) in other.iter_enumerate().filter(|x| !x.1.is_zero()) {
                 let new_value = f(a_i, b_i);
                 let mut res: T = a.clone();
                 res.mul_assign(b);
