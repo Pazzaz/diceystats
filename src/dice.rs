@@ -523,8 +523,13 @@ impl FromStr for DiceExpression {
     }
 }
 
+/// Displays an expression slightly normalized, with parenthesis and spaces.
+/// ```
+/// use dicers::DiceExpression;
+/// let x: DiceExpression = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
+/// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)");
+/// ```
 impl fmt::Display for DiceExpression {
-    // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut e = StringEvaluator { precedence: Vec::new() };
         let res = self.evaluate_generic(&mut e);

@@ -1,31 +1,56 @@
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub};
 
 use num::{FromPrimitive, Num};
+use rand::{
+    distributions::{WeightedIndex, uniform::SampleUniform},
+    prelude::Distribution,
+};
 
-/// A discrete distribution of outcomes
+/// A discrete distribution of outcomes.
+///
+/// Probabilities have type `T`, e.g. [`f32`], [`f64`], `BigRational` etc.
+/// All distributions have finite support, represented by a [`Vec<T>`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dist<T> {
     values: Vec<T>,
     offset: isize,
 }
 
-impl<T> Dist<T> {
-    /// The maximum value in the distributions support
-    pub fn max_value(&self) -> isize {
-        self.offset + (self.values.len() as isize) - 1
+impl<T: SampleUniform + PartialOrd + Clone + Default> Dist<T>
+where
+    for<'a> T: AddAssign<&'a T>,
+{
+    /// Convert to a [`Distribution`]. Useful for sampling.
+    pub fn to_distribution(self) -> impl Distribution<isize> {
+        WeightedIndex::new(self.values).unwrap().map(move |x| x as isize + self.offset)
     }
+}
 
-    /// The minimum value in the distributions support
+impl<T> Dist<T> {
+    /// The minimum value in the distributions support.
     pub fn min_value(&self) -> isize {
         self.offset
     }
 
-    /// Iterate through the distributions support, with each outcomes probability
+    /// The maximum value in the distributions support.
+    pub fn max_value(&self) -> isize {
+        self.offset + (self.values.len() as isize) - 1
+    }
+
+    /// Iterate through the distributions support, with each outcomes probability.
     pub fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
     }
 
     /// The chance that `n` will be sampled from the distribution. Returns `None` if ouside the distributions support.
+    /// ```
+    /// use dicers::{Dist, DiceExpression};
+    ///
+    /// let expr: DiceExpression = "d10".parse().unwrap();
+    /// let dist: Dist<f64> = expr.dist();
+    /// let p = dist.chance(3).unwrap_or(&0.0);
+    /// assert_eq!(1.0 / 10.0, *p);
+    /// ```
     pub fn chance(&self, n: isize) -> Option<&T> {
         usize::try_from(n + self.offset).ok().and_then(|x| self.values.get(x))
     }
@@ -81,10 +106,8 @@ where
         let sm = self.min_value();
         let ol = other.max_value();
         let om = other.min_value();
-        let max_value
-            = f(sl, ol).max(f(sl, om)).max(f(sm, ol)).max(f(sm, om));
-        let min_value
-            = f(sl, ol).min(f(sl, om)).min(f(sm, ol)).min(f(sm, om));
+        let max_value = f(sl, ol).max(f(sl, om)).max(f(sm, ol)).max(f(sm, om));
+        let min_value = f(sl, ol).min(f(sl, om)).min(f(sm, ol)).min(f(sm, om));
 
         buffer.resize((max_value - min_value + 1) as usize, T::zero());
         for (a_i, a) in self.iter_enumerate().filter(|x| !x.1.is_zero()) {
