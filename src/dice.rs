@@ -2,7 +2,9 @@ use num::{FromPrimitive, Num};
 use peg::str::LineCol;
 use rand::Rng;
 use std::{
-    fmt, ops::{Add, AddAssign, MulAssign}, str::FromStr
+    fmt,
+    ops::{Add, AddAssign, MulAssign},
+    str::FromStr,
 };
 
 use crate::Dist;
@@ -68,7 +70,7 @@ impl Part {
 }
 
 /// A sequence of interacting dice rolls
-/// 
+///
 /// You can also display a `DiceExpression` in a simplified form
 /// ```
 /// # use dicers::DiceExpression;
@@ -98,10 +100,11 @@ trait Evaluator<T> {
 }
 
 struct DistEvaluator<T> {
-    buffer: Vec<T>
+    buffer: Vec<T>,
 }
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive> Evaluator<Dist<T>> for DistEvaluator<T>
+impl<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive> Evaluator<Dist<T>>
+    for DistEvaluator<T>
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
@@ -140,9 +143,8 @@ where
     }
 }
 
-
 struct SampleEvaluator<'a, R: Rng + ?Sized> {
-    rng: &'a mut R
+    rng: &'a mut R,
 }
 
 impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
@@ -180,7 +182,7 @@ impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
 }
 
 struct StringEvaluator {
-    precedence: Vec<usize> 
+    precedence: Vec<usize>,
 }
 
 impl Evaluator<String> for StringEvaluator {
@@ -212,11 +214,7 @@ impl Evaluator<String> for StringEvaluator {
         let _aa = self.precedence.pop().unwrap();
         let bb = self.precedence.pop().unwrap();
         self.precedence.push(0);
-        if bb == 0 {
-            *a = format!("{a} + ({b})")
-        } else {
-            *a = format!("{a} + {b}")
-        }
+        if bb == 0 { *a = format!("{a} + ({b})") } else { *a = format!("{a} + {b}") }
     }
 
     fn mul_inplace(&mut self, a: &mut String, b: &String) {
@@ -283,12 +281,24 @@ impl EvaluateStage {
         match part {
             Part::None(NoOp::Dice(dice)) => EvaluateStage::Dice(dice),
             Part::None(NoOp::Const(n)) => EvaluateStage::Const(n),
-            Part::Double(DoubleOp { name: DoubleOpName::Add, a, b }) => EvaluateStage::AddCreate(a, b),
-            Part::Double(DoubleOp { name: DoubleOpName::Sub, a, b }) => EvaluateStage::SubCreate(a, b),
-            Part::Double(DoubleOp { name: DoubleOpName::Mul, a, b }) => EvaluateStage::MulCreate(a, b),
-            Part::Double(DoubleOp { name: DoubleOpName::Min, a, b }) => EvaluateStage::MinCreate(a, b),
-            Part::Double(DoubleOp { name: DoubleOpName::Max, a, b }) => EvaluateStage::MaxCreate(a, b),
-            Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }) => EvaluateStage::MultiAddCreate(a, b),
+            Part::Double(DoubleOp { name: DoubleOpName::Add, a, b }) => {
+                EvaluateStage::AddCreate(a, b)
+            }
+            Part::Double(DoubleOp { name: DoubleOpName::Sub, a, b }) => {
+                EvaluateStage::SubCreate(a, b)
+            }
+            Part::Double(DoubleOp { name: DoubleOpName::Mul, a, b }) => {
+                EvaluateStage::MulCreate(a, b)
+            }
+            Part::Double(DoubleOp { name: DoubleOpName::Min, a, b }) => {
+                EvaluateStage::MinCreate(a, b)
+            }
+            Part::Double(DoubleOp { name: DoubleOpName::Max, a, b }) => {
+                EvaluateStage::MaxCreate(a, b)
+            }
+            Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }) => {
+                EvaluateStage::MultiAddCreate(a, b)
+            }
         }
     }
 }
@@ -300,14 +310,14 @@ impl DiceExpression {
     }
 
     /// Calculate the probability distribution of the outcomes of the expression.
-    /// 
+    ///
     /// The function is generic over the number type used to represent probabilities.
-    /// 
+    ///
     /// ## Example
     /// ```
     /// use dicers::{DiceExpression, Dist};
     /// use num::BigRational;
-    /// 
+    ///
     /// let expr: DiceExpression = "d10 * d4".parse().unwrap();
     /// let fast_dist: Dist<f64> = expr.dist();
     /// let exact_dist: Dist<BigRational> = expr.dist();
@@ -315,7 +325,13 @@ impl DiceExpression {
     /// ```
     pub fn dist<T>(&self) -> Dist<T>
     where
-        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive,
+        for<'a> T: MulAssign<&'a T>
+            + AddAssign<&'a T>
+            + Num
+            + Clone
+            + AddAssign
+            + std::fmt::Debug
+            + FromPrimitive,
     {
         let mut e = DistEvaluator { buffer: Vec::new() };
         self.evaluate_generic(&mut e)
@@ -323,7 +339,8 @@ impl DiceExpression {
 
     // Traverses the tree with an Evaluator.
     fn evaluate_generic<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
-        let mut stack: Vec<EvaluateStage> = vec![EvaluateStage::collect_from(*self.parts.last().unwrap())];
+        let mut stack: Vec<EvaluateStage> =
+            vec![EvaluateStage::collect_from(*self.parts.last().unwrap())];
         let mut values: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {
             match x {

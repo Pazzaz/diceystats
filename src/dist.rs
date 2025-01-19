@@ -1,7 +1,6 @@
-use std::ops::{AddAssign, MulAssign, Sub, Add, Mul};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Sub};
 
 use num::{FromPrimitive, Num};
-
 
 /// A discrete distribution of outcomes
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,10 +21,8 @@ impl<T> Dist<T> {
     }
 
     /// Iterate through the distributions support, with each outcomes probability
-    pub fn iter_enumerate(&self) -> impl Iterator<Item=(isize, &T)> {
-        self.values.iter().enumerate().map(|(x_i, x)| {
-            (x_i as isize + self.offset, x)
-        })
+    pub fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+        self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
     }
 
     /// The chance that `n` will be sampled from the distribution. Returns `None` if ouside the distributions support.
@@ -117,23 +114,23 @@ where
         buffer.clear();
     }
 
-    pub (crate) fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::add);
     }
 
-    pub (crate) fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::mul);
     }
 
-    pub (crate) fn sub_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn sub_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::sub);
     }
 
-    pub (crate) fn max_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn max_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::max);
     }
 
-    pub (crate) fn min_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn min_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::min);
     }
 }
@@ -142,7 +139,7 @@ impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
-    pub (crate) fn repeat(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn repeat(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.is_empty());
         debug_assert!(0 <= self.offset);
 
