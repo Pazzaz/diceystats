@@ -3,8 +3,7 @@ use num::{FromPrimitive, Num};
 use peg::str::LineCol;
 use rand::Rng;
 use std::{
-    ops::{Add, AddAssign, Mul, MulAssign, Sub},
-    str::FromStr,
+    fmt, ops::{Add, AddAssign, Mul, MulAssign, Sub}, str::FromStr
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -418,6 +417,85 @@ impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
     }
 }
 
+struct StringEvaluator {
+    precedence: Vec<usize> 
+}
+
+impl Evaluator<String> for StringEvaluator {
+    const LOSSY: bool = false;
+
+    fn dice(&mut self, d: Dice) -> String {
+        self.precedence.push(7);
+        format!("d{}", d.n)
+    }
+
+    fn repeat_inplace(&mut self, a: &mut String, b: &String) {
+        let aa = self.precedence.pop().unwrap();
+        let bb = self.precedence.pop().unwrap();
+        self.precedence.push(3);
+        *a = match (aa >= 3, bb > 3) {
+            (true, true) => format!("{a}x{b}"),
+            (true, false) => format!("{a}x({b})"),
+            (false, true) => format!("({a})x{b}"),
+            (false, false) => format!("({a})x({b})"),
+        };
+    }
+
+    fn constant(&mut self, n: isize) -> String {
+        self.precedence.push(6);
+        format!("{}", n)
+    }
+
+    fn add_inplace(&mut self, a: &mut String, b: &String) {
+        let _aa = self.precedence.pop().unwrap();
+        let bb = self.precedence.pop().unwrap();
+        self.precedence.push(0);
+        if bb == 0 {
+            *a = format!("{a} + ({b})")
+        } else {
+            *a = format!("{a} + {b}")
+        }
+    }
+
+    fn mul_inplace(&mut self, a: &mut String, b: &String) {
+        let aa = self.precedence.pop().unwrap();
+        let bb = self.precedence.pop().unwrap();
+        self.precedence.push(2);
+        *a = match (aa >= 2, bb > 2) {
+            (true, true) => format!("{a} * {b}"),
+            (true, false) => format!("{a} * ({b})"),
+            (false, true) => format!("({a}) * {b}"),
+            (false, false) => format!("({a}) * ({b})"),
+        };
+    }
+
+    fn sub_inplace(&mut self, a: &mut String, b: &String) {
+        let aa = self.precedence.pop().unwrap();
+        let bb = self.precedence.pop().unwrap();
+        self.precedence.push(1);
+        *a = match (aa >= 1, bb > 1) {
+            (true, true) => format!("{a} - {b}"),
+            (true, false) => format!("{a} - ({b})"),
+            (false, true) => format!("({a}) - {b}"),
+            (false, false) => format!("({a}) - ({b})"),
+        };
+    }
+
+    fn max_inplace(&mut self, a: &mut String, b: &String) {
+        let _aa = self.precedence.pop().unwrap();
+        let _bb = self.precedence.pop().unwrap();
+        self.precedence.push(9);
+        *a = format!("max({a}, {b})");
+    }
+
+    fn min_inplace(&mut self, a: &mut String, b: &String) {
+        let _aa = self.precedence.pop().unwrap();
+        let _bb = self.precedence.pop().unwrap();
+        self.precedence.push(8);
+        *a = format!("max({a}, {b})");
+    }
+}
+
 enum EvaluateStage {
     Dice(Dice),
     Const(isize),
@@ -648,6 +726,15 @@ impl FromStr for DiceExpression {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         list_parser::arithmetic(s)
+    }
+}
+
+impl fmt::Display for DiceExpression {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut e = StringEvaluator { precedence: Vec::new() };
+        let res = self.evaluate_generic(&mut e);
+        write!(f, "{}", res)
     }
 }
 
