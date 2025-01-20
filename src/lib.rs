@@ -6,7 +6,7 @@
 //!
 //! # Usage
 //! ```
-//! use diceystats::{DiceExpression, Dist};
+//! use diceystats::{DiceExpression, Dist, roll};
 //! use num::BigRational;
 //! use rand::thread_rng;
 //!
@@ -14,15 +14,14 @@
 //! // Then roll that number of six sided dice, and sum those rolls.
 //! let example = "(d4 + d5)xd6";
 //!
-//! // We first parse it into a `DiceExpression`
+//! // We can roll the dice and calculate the result
+//! let result = roll(example, &mut thread_rng()).unwrap();
+//! assert!(2 <= result && result <= 54);
+//! 
+//! // Or to do more advanced things we can parse it into a `DiceExpression`
 //! let d4_d5_d6: DiceExpression = example.parse().unwrap();
 //!
-//! // Then we can sample from it
-//! let mut rng = thread_rng();
-//! let result = d4_d5_d6.sample(&mut rng);
-//! assert!(2 <= result && result <= 54);
-//!
-//! // Or calculate the whole distribution
+//! // Then we can calculate its probability distribution
 //! let dist: Dist<f64> = d4_d5_d6.dist();
 //! assert!((dist.mean() - 19.25).abs() <= 0.01);
 //!
@@ -34,8 +33,23 @@
 #![feature(test)]
 mod dice;
 mod dist;
+use std::str::FromStr;
+
 pub use dice::DiceExpression;
 pub use dist::Dist;
+use rand::Rng;
+
+/// Roll a set of dice.
+/// 
+/// Returns `None` if the expression is invalid.
+/// ```
+/// use rand::thread_rng;
+/// 
+/// let x = diceystats::roll("d10 + d5", &mut thread_rng());
+/// ```
+pub fn roll<R: Rng + ?Sized>(s: &str, rng: &mut R) -> Option<isize> {
+    DiceExpression::from_str(s).ok().map(|x| x.sample(rng))
+}
 
 #[cfg(test)]
 mod tests {
