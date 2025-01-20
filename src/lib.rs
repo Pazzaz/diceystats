@@ -29,13 +29,21 @@
 //! let dist: Dist<BigRational> = d4_d5_d6.dist();
 //! assert_eq!(dist.mean(), "77/4".parse().unwrap());
 //! ```
+//! 
+//! The library also supports "negative dice", but the library will fail if there's a chance of rolling a negative *amount* of dice
+//! ```
+//! use diceystats::{DiceExpression, Dist, roll};
+//! use rand::thread_rng;
+//! 
+//! roll("(d4 - d4)xd20", &mut thread_rng()).is_err();
+//! ```
 
 #![feature(test)]
 mod dice;
 mod dist;
 use std::str::FromStr;
 
-pub use dice::DiceExpression;
+pub use dice::{DiceExpression, DiceParseError};
 pub use dist::Dist;
 use rand::Rng;
 
@@ -47,8 +55,8 @@ use rand::Rng;
 /// 
 /// let x = diceystats::roll("d10 + d5", &mut thread_rng());
 /// ```
-pub fn roll<R: Rng + ?Sized>(s: &str, rng: &mut R) -> Option<isize> {
-    DiceExpression::from_str(s).ok().map(|x| x.sample(rng))
+pub fn roll<R: Rng + ?Sized>(s: &str, rng: &mut R) -> Result<isize, DiceParseError> {
+    DiceExpression::from_str(s).map(|x| x.sample(rng))
 }
 
 #[cfg(test)]

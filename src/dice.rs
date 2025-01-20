@@ -143,6 +143,58 @@ where
     }
 }
 
+struct InvalidNegative {
+    found: usize,
+}
+
+impl Evaluator<(isize, isize)> for InvalidNegative {
+    const LOSSY: bool = false;
+
+    fn dice(&mut self, d: Dice) -> (isize, isize) {
+        (1, d.n as isize)
+    }
+
+    fn constant(&mut self, n: isize) -> (isize, isize) {
+        (n, n)
+    }
+
+    fn repeat_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
+        if a.0 < 0 {
+            self.found += 1;
+            a.0 = 0;
+            if a.1 < 0 {
+                a.1 = 0;
+            }
+        }
+        let extremes = [a.0 * b.0, a.0 * b.1, a.1 * b.0, a.1 * b.1];
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+    }
+
+    fn add_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
+        *a = (a.0 + b.0, a.1 + b.1)
+    }
+
+    fn mul_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
+        let extremes = [a.0 * b.0, a.0 * b.1, a.1 * b.0, a.1 * b.1];
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+    }
+
+    fn sub_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
+        let extremes = [a.0 - b.0, a.0 - b.1, a.1 - b.0, a.1 - b.1];
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+    }
+
+    fn max_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
+        let extremes = [a.0.max(b.0), a.0.max(b.1), a.1.max(b.0), a.1.max(b.1)];
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+    }
+
+    fn min_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
+        let extremes = [a.0.min(b.0), a.0.min(b.1), a.1.min(b.0), a.1.min(b.1)];
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+    }
+}
+
 struct SampleEvaluator<'a, R: Rng + ?Sized> {
     rng: &'a mut R,
 }
@@ -498,6 +550,12 @@ impl DiceExpression {
         self.multi_add_assign(other);
         self
     }
+
+    fn could_be_negative(&self) -> usize {
+        let mut s = InvalidNegative { found: 0 };
+        self.evaluate_generic(&mut s);
+        s.found
+    }
 }
 
 impl AddAssign<&Self> for DiceExpression {
@@ -515,11 +573,24 @@ impl Add<&Self> for DiceExpression {
     }
 }
 
+#[derive(Debug)]
+pub enum DiceParseError {
+    Parse(peg::error::ParseError<LineCol>),
+    NegativeRolls,
+}
+
 impl FromStr for DiceExpression {
-    type Err = peg::error::ParseError<LineCol>;
+    type Err = DiceParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        list_parser::arithmetic(s)
+        match list_parser::arithmetic(s) {
+            Ok(expr) => if expr.could_be_negative() != 0 {
+                Err(DiceParseError::NegativeRolls)
+            } else {
+                Ok(expr)
+            },
+            Err(err) => Err(DiceParseError::Parse(err)),
+        }
     }
 }
 
