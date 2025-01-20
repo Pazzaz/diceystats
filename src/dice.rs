@@ -319,24 +319,12 @@ impl EvaluateStage {
         match part {
             Part::Dice(dice) => EvaluateStage::Dice(dice),
             Part::Const(n) => EvaluateStage::Const(n),
-            Part::Add(a, b) => {
-                EvaluateStage::AddCreate(a, b)
-            }
-            Part::Sub(a, b) => {
-                EvaluateStage::SubCreate(a, b)
-            }
-            Part::Mul(a, b) => {
-                EvaluateStage::MulCreate(a, b)
-            }
-            Part::Min(a, b) => {
-                EvaluateStage::MinCreate(a, b)
-            }
-            Part::Max(a, b) => {
-                EvaluateStage::MaxCreate(a, b)
-            }
-            Part::MultiAdd(a, b) => {
-                EvaluateStage::MultiAddCreate(a, b)
-            }
+            Part::Add(a, b) => EvaluateStage::AddCreate(a, b),
+            Part::Sub(a, b) => EvaluateStage::SubCreate(a, b),
+            Part::Mul(a, b) => EvaluateStage::MulCreate(a, b),
+            Part::Min(a, b) => EvaluateStage::MinCreate(a, b),
+            Part::Max(a, b) => EvaluateStage::MaxCreate(a, b),
+            Part::MultiAdd(a, b) => EvaluateStage::MultiAddCreate(a, b),
         }
     }
 }
@@ -580,11 +568,13 @@ impl FromStr for DiceExpression {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match list_parser::arithmetic(s) {
-            Ok(expr) => if expr.could_be_negative() != 0 {
-                Err(DiceParseError::NegativeRolls)
-            } else {
-                Ok(expr)
-            },
+            Ok(expr) => {
+                if expr.could_be_negative() != 0 {
+                    Err(DiceParseError::NegativeRolls)
+                } else {
+                    Ok(expr)
+                }
+            }
             Err(err) => Err(DiceParseError::Parse(err)),
         }
     }

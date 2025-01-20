@@ -1,4 +1,7 @@
-use std::{fmt::Debug, ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign}};
+use std::{
+    fmt::Debug,
+    ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
+};
 
 use num::{FromPrimitive, Num};
 use rand::{
@@ -46,7 +49,7 @@ where
         for i in a..b {
             if i < self.min_value() || self.max_value() < i {
                 d += other.chance(i).unwrap();
-            } else if i < other.min_value() || other.max_value() < i  {
+            } else if i < other.min_value() || other.max_value() < i {
                 d += self.chance(i).unwrap();
             } else {
                 let i1 = self.chance(i).unwrap();
