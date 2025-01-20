@@ -29,42 +29,28 @@ impl Dice {
 
 #[derive(Debug, Clone, Copy)]
 enum Part {
-    None(NoOp),
-    Double(DoubleOp),
-}
-
-#[derive(Debug, Clone, Copy)]
-enum NoOp {
     Dice(Dice),
     Const(isize),
-}
-
-#[derive(Debug, Clone, Copy)]
-struct DoubleOp {
-    name: DoubleOpName,
-    a: usize,
-    b: usize,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum DoubleOpName {
-    Add,
-    Mul,
-    Sub,
-    Max,
-    Min,
-
+    Add(usize, usize),
+    Mul(usize, usize),
+    Sub(usize, usize),
+    Max(usize, usize),
+    Min(usize, usize),
     // Left value is how many times we should evaluate the right expression
-    MultiAdd,
+    MultiAdd(usize, usize),
 }
 
 impl Part {
     fn increased_offset(&self, n: usize) -> Self {
         match *self {
-            Part::None(x) => Part::None(x),
-            Part::Double(DoubleOp { name, a, b }) => {
-                Part::Double(DoubleOp { name, a: a + n, b: b + n })
-            }
+            Part::Dice(dice) => Part::Dice(dice),
+            Part::Const(n) => Part::Const(n),
+            Part::Add(a, b) => Part::Add(a + n, b + n),
+            Part::Mul(a, b) => Part::Mul(a + n, b + n),
+            Part::Sub(a, b) => Part::Sub(a + n, b + n),
+            Part::Max(a, b) => Part::Max(a + n, b + n),
+            Part::Min(a, b) => Part::Min(a + n, b + n),
+            Part::MultiAdd(a, b) => Part::MultiAdd(a + n, b + n),
         }
     }
 }
@@ -331,24 +317,24 @@ enum EvaluateStage {
 impl EvaluateStage {
     fn collect_from(part: Part) -> Self {
         match part {
-            Part::None(NoOp::Dice(dice)) => EvaluateStage::Dice(dice),
-            Part::None(NoOp::Const(n)) => EvaluateStage::Const(n),
-            Part::Double(DoubleOp { name: DoubleOpName::Add, a, b }) => {
+            Part::Dice(dice) => EvaluateStage::Dice(dice),
+            Part::Const(n) => EvaluateStage::Const(n),
+            Part::Add(a, b) => {
                 EvaluateStage::AddCreate(a, b)
             }
-            Part::Double(DoubleOp { name: DoubleOpName::Sub, a, b }) => {
+            Part::Sub(a, b) => {
                 EvaluateStage::SubCreate(a, b)
             }
-            Part::Double(DoubleOp { name: DoubleOpName::Mul, a, b }) => {
+            Part::Mul(a, b) => {
                 EvaluateStage::MulCreate(a, b)
             }
-            Part::Double(DoubleOp { name: DoubleOpName::Min, a, b }) => {
+            Part::Min(a, b) => {
                 EvaluateStage::MinCreate(a, b)
             }
-            Part::Double(DoubleOp { name: DoubleOpName::Max, a, b }) => {
+            Part::Max(a, b) => {
                 EvaluateStage::MaxCreate(a, b)
             }
-            Part::Double(DoubleOp { name: DoubleOpName::MultiAdd, a, b }) => {
+            Part::MultiAdd(a, b) => {
                 EvaluateStage::MultiAddCreate(a, b)
             }
         }
@@ -492,22 +478,27 @@ impl DiceExpression {
         values.pop().unwrap()
     }
 
-    fn new(start: NoOp) -> Self {
-        Self { parts: vec![Part::None(start)] }
+    fn dice(d: Dice) -> Self {
+        Self { parts: vec![Part::Dice(d)] }
     }
 
-    fn op_double_inplace(&mut self, other: &DiceExpression, name: DoubleOpName) {
+    fn constant(n: isize) -> Self {
+        Self { parts: vec![Part::Const(n)] }
+    }
+
+    fn op_double_inplace(&mut self, other: &DiceExpression) -> (usize, usize) {
         self.parts.reserve(other.parts.len() + 1);
 
         let orig_len = self.parts.len();
         let first_element = orig_len - 1;
         self.parts.extend(other.parts.iter().map(|x| x.increased_offset(orig_len)));
         let second_element = self.parts.len() - 1;
-        self.parts.push(Part::Double(DoubleOp { name, a: first_element, b: second_element }));
+        (first_element, second_element)
     }
 
     fn mul_assign(&mut self, other: &DiceExpression) {
-        self.op_double_inplace(other, DoubleOpName::Mul);
+        let (a, b) = self.op_double_inplace(other);
+        self.parts.push(Part::Mul(a, b));
     }
 
     fn mul(mut self, other: &DiceExpression) -> Self {
@@ -516,7 +507,8 @@ impl DiceExpression {
     }
 
     fn sub_assign(&mut self, other: &DiceExpression) {
-        self.op_double_inplace(other, DoubleOpName::Sub);
+        let (a, b) = self.op_double_inplace(other);
+        self.parts.push(Part::Sub(a, b));
     }
 
     fn sub(mut self, other: &DiceExpression) -> Self {
@@ -525,7 +517,8 @@ impl DiceExpression {
     }
 
     fn min_assign(&mut self, other: &DiceExpression) {
-        self.op_double_inplace(other, DoubleOpName::Min);
+        let (a, b) = self.op_double_inplace(other);
+        self.parts.push(Part::Min(a, b));
     }
 
     fn min(mut self, other: &DiceExpression) -> Self {
@@ -534,7 +527,8 @@ impl DiceExpression {
     }
 
     fn max_assign(&mut self, other: &DiceExpression) {
-        self.op_double_inplace(other, DoubleOpName::Max);
+        let (a, b) = self.op_double_inplace(other);
+        self.parts.push(Part::Max(a, b));
     }
 
     fn max(mut self, other: &DiceExpression) -> Self {
@@ -543,7 +537,8 @@ impl DiceExpression {
     }
 
     fn multi_add_assign(&mut self, other: &DiceExpression) {
-        self.op_double_inplace(other, DoubleOpName::MultiAdd);
+        let (a, b) = self.op_double_inplace(other);
+        self.parts.push(Part::MultiAdd(a, b));
     }
 
     fn multi_add(mut self, other: &DiceExpression) -> Self {
@@ -560,7 +555,8 @@ impl DiceExpression {
 
 impl AddAssign<&Self> for DiceExpression {
     fn add_assign(&mut self, other: &Self) {
-        self.op_double_inplace(other, DoubleOpName::Add);
+        let (a, b) = self.op_double_inplace(other);
+        self.parts.push(Part::Add(a, b));
     }
 }
 
@@ -568,7 +564,7 @@ impl Add<&Self> for DiceExpression {
     type Output = Self;
 
     fn add(mut self, other: &Self) -> Self {
-        self.op_double_inplace(other, DoubleOpName::Add);
+        self.add_assign(other);
         self
     }
 }
@@ -621,13 +617,13 @@ peg::parser! {
             x:(@) " "* "x" " "* y:@ { x.multi_add(&y) }
             --
             n1:number() "d" n2:number() {
-                let nn1 = DiceExpression::new(NoOp::Const(n1 as isize));
-                let nn2 = DiceExpression::new(NoOp::Dice(Dice::new(n2)));
+                let nn1 = DiceExpression::constant(n1 as isize);
+                let nn2 = DiceExpression::dice(Dice::new(n2));
                 nn1.multi_add(&nn2)
             }
-            n:number() { DiceExpression::new(NoOp::Const(n as isize)) }
-            "-" n:number() { DiceExpression::new(NoOp::Const(-(n as isize))) }
-            "d" n:number() { DiceExpression::new(NoOp::Dice(Dice::new(n))) }
+            n:number() { DiceExpression::constant(n as isize) }
+            "-" n:number() { DiceExpression::constant(-(n as isize)) }
+            "d" n:number() { DiceExpression::dice(Dice::new(n)) }
             "min(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.min(&b)).unwrap() }
             "max(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.max(&b)).unwrap() }
             "(" " "* e:arithmetic() " "* ")" { e }
