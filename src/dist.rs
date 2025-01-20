@@ -32,7 +32,7 @@ where
 {
     /// Distance between two distributions, measured by elementwise difference of probabilities
     /// ```
-    /// use dicers::{DiceExpression, Dist};
+    /// use diceystats::{DiceExpression, Dist};
     /// use num::BigRational;
     /// let expr1 = "d4xd3".parse::<DiceExpression>().unwrap();
     /// let expr2 = "d4+d6".parse::<DiceExpression>().unwrap();
@@ -82,7 +82,7 @@ impl<T> Dist<T> {
 
     /// The chance that `n` will be sampled from the distribution. Returns `None` if ouside the distributions support.
     /// ```
-    /// use dicers::{Dist, DiceExpression};
+    /// use diceystats::{Dist, DiceExpression};
     ///
     /// let expr: DiceExpression = "d10".parse().unwrap();
     /// let dist: Dist<f64> = expr.dist();

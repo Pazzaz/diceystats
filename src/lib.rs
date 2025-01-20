@@ -6,7 +6,7 @@
 //!
 //! # Usage
 //! ```
-//! use dicers::{DiceExpression, Dist};
+//! use diceystats::{DiceExpression, Dist};
 //! use num::BigRational;
 //! use rand::thread_rng;
 //!
