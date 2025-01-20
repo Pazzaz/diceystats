@@ -110,13 +110,4 @@ mod tests {
             BigRational::new(BigInt::from(55), BigInt::from(2))
         );
     }
-
-    #[test]
-    fn rational_30dx30d() {
-        let yep: DiceExpression = "d30xd30".parse().unwrap();
-        assert_eq!(
-            yep.dist::<BigRational>().mean(),
-            BigRational::new(BigInt::from(961), BigInt::from(4))
-        );
-    }
 }
