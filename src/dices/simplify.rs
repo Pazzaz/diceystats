@@ -19,12 +19,8 @@ impl Evaluator<DiceExpression> for Simplifier {
         match a.top_part() {
             // Double negate => remove negate
             Part::Const(n) => {
-                if n < 0 {
-                    a.parts.pop();
-                    a.parts.push(Part::Const(-n));
-                } else {
-                    a.negate_inplace()
-                }
+                a.parts.pop();
+                a.parts.push(Part::Const(-n));
             }
             Part::Negate(_) => {
                 a.parts.pop();
