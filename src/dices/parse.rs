@@ -10,7 +10,6 @@ pub enum DiceParseError {
     NegativeRolls,
 }
 
-
 impl FromStr for DiceExpression {
     type Err = DiceParseError;
 

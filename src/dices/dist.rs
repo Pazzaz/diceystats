@@ -58,7 +58,7 @@ where
     fn repeat_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
         a.repeat(b, &mut self.buffer);
     }
-    
+
     fn negate_inplace(&mut self, a: &mut Dist<T>) {
         a.negate_inplace();
     }

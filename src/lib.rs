@@ -43,8 +43,8 @@ mod dices;
 mod dist;
 use std::str::FromStr;
 
-use dices::parse::DiceParseError;
 pub use dices::DiceExpression;
+use dices::parse::DiceParseError;
 pub use dist::Dist;
 use rand::Rng;
 

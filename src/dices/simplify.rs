@@ -2,18 +2,13 @@ use std::ops::{AddAssign, Mul, MulAssign, SubAssign};
 
 use super::{DiceExpression, Evaluator, Part};
 
-
 struct Simplifier {}
 
 impl Evaluator<DiceExpression> for Simplifier {
     const LOSSY: bool = false;
 
     fn dice(&mut self, d: usize) -> DiceExpression {
-        if d == 1 {
-            DiceExpression::constant(1)
-        } else {
-            DiceExpression::dice(d)
-        }
+        if d == 1 { DiceExpression::constant(1) } else { DiceExpression::dice(d) }
     }
 
     fn constant(&mut self, n: isize) -> DiceExpression {
@@ -30,20 +25,20 @@ impl Evaluator<DiceExpression> for Simplifier {
                 } else {
                     a.negate_inplace()
                 }
-            },
+            }
             Part::Negate(_) => {
                 a.parts.pop();
-            },
+            }
             // Else we just negate
             Part::Dice(_)
-            | Part::Add(_, _)  
+            | Part::Add(_, _)
             | Part::Mul(_, _)
             | Part::Sub(_, _)
             | Part::Max(_, _)
             | Part::Min(_, _)
             | Part::MultiAdd(_, _) => {
                 a.negate_inplace();
-            },
+            }
         }
     }
 
@@ -52,8 +47,7 @@ impl Evaluator<DiceExpression> for Simplifier {
             (Part::Const(aa), Part::Const(bb)) => {
                 *a = DiceExpression::constant(aa * bb);
             }
-            (Part::Const(1), _) => {
-            }
+            (Part::Const(1), _) => {}
             (_, Part::Const(1)) => {
                 *a = b.clone();
             }
@@ -85,8 +79,7 @@ impl Evaluator<DiceExpression> for Simplifier {
             (Part::Const(1), _) => {
                 *a = b.clone();
             }
-            (_, Part::Const(1)) => {
-            }
+            (_, Part::Const(1)) => {}
             _ => {
                 a.mul_assign(b);
             }
@@ -129,7 +122,7 @@ impl DiceExpression {
     /// Simplify the expression using simple rewriting rules
     /// ```
     /// use diceystats::DiceExpression;
-    /// 
+    ///
     /// let complicated: DiceExpression = "min((d4+d5)*5, d5x2)".parse().unwrap();
     /// let simple = complicated.simplified();
     /// assert_eq!(simple.to_string(), "d5 * 2");

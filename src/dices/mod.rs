@@ -1,10 +1,10 @@
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
-mod random;
-mod print;
-pub mod parse;
-mod simplify;
 mod dist;
+pub mod parse;
+mod print;
+mod random;
+mod simplify;
 
 #[derive(Debug, Clone, Copy)]
 enum Part {
@@ -130,7 +130,7 @@ enum EvaluateStage {
     MultiAddCollect,
     MultiAddCollectPartial(usize),
     MultiAddExtra(usize),
-    
+
     NegateCreate(usize),
     AddCreate(usize, usize),
     SubCreate(usize, usize),
@@ -168,8 +168,7 @@ impl DiceExpression {
 
     // Traverses the tree with an Evaluator.
     fn evaluate_generic<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
-        let mut stack: Vec<EvaluateStage> =
-            vec![EvaluateStage::collect_from(self.top_part())];
+        let mut stack: Vec<EvaluateStage> = vec![EvaluateStage::collect_from(self.top_part())];
         let mut values: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {
             match x {

@@ -44,7 +44,7 @@ impl Evaluator<String> for StringEvaluator {
         self.precedence.push(7);
         format!("{}", n)
     }
-    
+
     fn negate_inplace(&mut self, a: &mut String) {
         let _aa = self.precedence.pop().unwrap();
         self.precedence.push(6);

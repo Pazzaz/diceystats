@@ -1,4 +1,4 @@
-use rand::{distributions::Uniform, prelude::Distribution, seq::SliceRandom, Rng};
+use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
 
 use super::{DiceExpression, Evaluator, Part};
 
@@ -69,7 +69,7 @@ impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
     fn constant(&mut self, n: isize) -> isize {
         n
     }
-    
+
     fn negate_inplace(&mut self, a: &mut isize) {
         *a = -*a;
     }
