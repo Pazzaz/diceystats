@@ -471,7 +471,7 @@ impl DiceExpression {
     ///
     /// The function is generic over the number type used to represent probabilities.
     ///
-    /// ## Example
+    /// # Example
     /// ```
     /// use diceystats::{DiceExpression, Dist};
     /// use num::BigRational;
@@ -678,6 +678,14 @@ impl DiceExpression {
         (a, b)
     }
 
+    /// Simplify the expression using simple rewriting rules
+    /// ```
+    /// use diceystats::DiceExpression;
+    /// 
+    /// let complicated: DiceExpression = "min((d4+d5)*5, d5x2)".parse().unwrap();
+    /// let simple = complicated.simplified();
+    /// assert_eq!(simple.to_string(), "d5 * 2");
+    /// ```
     pub fn simplified(&self) -> DiceExpression {
         let mut s = Simplifier {};
         self.evaluate_generic(&mut s)
