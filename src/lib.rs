@@ -39,11 +39,12 @@
 //! ```
 
 #![feature(test)]
-mod dice;
+mod dices;
 mod dist;
 use std::str::FromStr;
 
-pub use dice::{DiceExpression, DiceParseError};
+use dices::parse::DiceParseError;
+pub use dices::DiceExpression;
 pub use dist::Dist;
 use rand::Rng;
 
