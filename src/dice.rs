@@ -3,33 +3,15 @@ use peg::str::LineCol;
 use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
 use std::{
     fmt,
-    ops::{Add, AddAssign, MulAssign},
+    ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
     str::FromStr,
 };
 
 use crate::Dist;
 
 #[derive(Debug, Clone, Copy)]
-struct Dice {
-    n: usize,
-}
-
-impl Dice {
-    fn new(n: usize) -> Self {
-        debug_assert!(n != 0);
-        Self { n }
-    }
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
-        (rng.gen_range(0..self.n) + 1) as isize
-    }
-    fn dist<T: Num + FromPrimitive>(&self) -> Dist<T> {
-        Dist::uniform(1, self.n as isize)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 enum Part {
-    Dice(Dice),
+    Dice(usize),
     Const(isize),
     Add(usize, usize),
     Mul(usize, usize),
@@ -73,7 +55,7 @@ trait Evaluator<T> {
     fn to_usize(_x: T) -> usize {
         unreachable!("Only used if operations are LOSSY");
     }
-    fn dice(&mut self, d: Dice) -> T;
+    fn dice(&mut self, d: usize) -> T;
     fn constant(&mut self, n: isize) -> T;
     fn repeat_inplace(&mut self, _a: &mut T, _b: &T) {
         unreachable!("Only used if operations are not LOSSY");
@@ -96,8 +78,8 @@ where
 {
     const LOSSY: bool = false;
 
-    fn dice(&mut self, d: Dice) -> Dist<T> {
-        d.dist()
+    fn dice(&mut self, d: usize) -> Dist<T> {
+        Dist::uniform(1, d as isize)
     }
 
     fn constant(&mut self, n: isize) -> Dist<T> {
@@ -136,8 +118,8 @@ struct InvalidNegative {
 impl Evaluator<(isize, isize)> for InvalidNegative {
     const LOSSY: bool = false;
 
-    fn dice(&mut self, d: Dice) -> (isize, isize) {
-        (1, d.n as isize)
+    fn dice(&mut self, d: usize) -> (isize, isize) {
+        (1, d as isize)
     }
 
     fn constant(&mut self, n: isize) -> (isize, isize) {
@@ -190,8 +172,8 @@ impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
     fn to_usize(x: isize) -> usize {
         x.try_into().unwrap_or_else(|_| panic!("Can't roll negative amount of dice"))
     }
-    fn dice(&mut self, d: Dice) -> isize {
-        d.sample(self.rng)
+    fn dice(&mut self, d: usize) -> isize {
+        (self.rng.gen_range(0..=d)) as isize
     }
 
     fn constant(&mut self, n: isize) -> isize {
@@ -226,9 +208,9 @@ struct StringEvaluator {
 impl Evaluator<String> for StringEvaluator {
     const LOSSY: bool = false;
 
-    fn dice(&mut self, d: Dice) -> String {
+    fn dice(&mut self, d: usize) -> String {
         self.precedence.push(7);
-        format!("d{}", d.n)
+        format!("d{}", d)
     }
 
     fn repeat_inplace(&mut self, a: &mut String, b: &String) {
@@ -295,7 +277,7 @@ impl Evaluator<String> for StringEvaluator {
 }
 
 enum EvaluateStage {
-    Dice(Dice),
+    Dice(usize),
     Const(isize),
     MultiAddCreate(usize, usize),
     MultiAddCollect,
@@ -466,7 +448,7 @@ impl DiceExpression {
         values.pop().unwrap()
     }
 
-    fn dice(d: Dice) -> Self {
+    fn dice(d: usize) -> Self {
         Self { parts: vec![Part::Dice(d)] }
     }
 
@@ -482,26 +464,6 @@ impl DiceExpression {
         self.parts.extend(other.parts.iter().map(|x| x.increased_offset(orig_len)));
         let second_element = self.parts.len() - 1;
         (first_element, second_element)
-    }
-
-    fn mul_assign(&mut self, other: &DiceExpression) {
-        let (a, b) = self.op_double_inplace(other);
-        self.parts.push(Part::Mul(a, b));
-    }
-
-    fn mul(mut self, other: &DiceExpression) -> Self {
-        self.mul_assign(other);
-        self
-    }
-
-    fn sub_assign(&mut self, other: &DiceExpression) {
-        let (a, b) = self.op_double_inplace(other);
-        self.parts.push(Part::Sub(a, b));
-    }
-
-    fn sub(mut self, other: &DiceExpression) -> Self {
-        self.sub_assign(other);
-        self
     }
 
     fn min_assign(&mut self, other: &DiceExpression) {
@@ -549,7 +511,7 @@ impl DiceExpression {
 }
 
 fn random_none<R: Rng + ?Sized>(rng: &mut R, n: usize) -> Part {
-    let choices = [Part::Const(n as isize), Part::Dice(Dice { n })];
+    let choices = [Part::Const(n as isize), Part::Dice(n)];
     *choices.choose(rng).unwrap()
 }
 
@@ -610,6 +572,38 @@ impl Add<&Self> for DiceExpression {
     }
 }
 
+impl MulAssign<&Self> for DiceExpression {
+    fn mul_assign(&mut self, other: &Self) {
+        let (a, b) = self.op_double_inplace(other);
+        self.parts.push(Part::Mul(a, b));
+    }
+}
+
+impl Mul<&Self> for DiceExpression {
+    type Output = Self;
+
+    fn mul(mut self, other: &Self) -> Self {
+        self.mul_assign(other);
+        self
+    }
+}
+
+impl SubAssign<&Self> for DiceExpression {
+    fn sub_assign(&mut self, other: &Self) {
+        let (a, b) = self.op_double_inplace(other);
+        self.parts.push(Part::Sub(a, b));
+    }
+}
+
+impl Sub<&Self> for DiceExpression {
+    type Output = Self;
+
+    fn sub(mut self, other: &Self) -> Self {
+        self.sub_assign(other);
+        self
+    }
+}
+
 #[derive(Debug)]
 pub enum DiceParseError {
     Parse(peg::error::ParseError<LineCol>),
@@ -652,21 +646,21 @@ peg::parser! {
         rule number() -> usize = n:$(['0'..='9']+) {? n.parse::<usize>().or(Err("u32")) }
         rule list_part() -> DiceExpression = " "* e:arithmetic() " "* { e }
         pub rule arithmetic() -> DiceExpression = precedence!{
-            x:(@) " "* "+" " "* y:@ { x.add(&y) }
-            x:(@) " "* "-" " "* y:@ { x.sub(&y) }
+            x:(@) " "* "+" " "* y:@ { x + &y }
+            x:(@) " "* "-" " "* y:@ { x - &y }
             --
-            x:(@) " "* "*" " "* y:@ { x.mul(&y) }
+            x:(@) " "* "*" " "* y:@ { x * &y }
             --
             x:(@) " "* "x" " "* y:@ { x.multi_add(&y) }
             --
             n1:number() "d" n2:number() {
                 let nn1 = DiceExpression::constant(n1 as isize);
-                let nn2 = DiceExpression::dice(Dice::new(n2));
+                let nn2 = DiceExpression::dice(n2);
                 nn1.multi_add(&nn2)
             }
             n:number() { DiceExpression::constant(n as isize) }
             "-" n:number() { DiceExpression::constant(-(n as isize)) }
-            "d" n:number() { DiceExpression::dice(Dice::new(n)) }
+            "d" n:number() { DiceExpression::dice(n) }
             "min(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.min(&b)).unwrap() }
             "max(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.max(&b)).unwrap() }
             "(" " "* e:arithmetic() " "* ")" { e }
