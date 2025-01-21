@@ -1,6 +1,6 @@
 use num::{FromPrimitive, Num};
 use peg::str::LineCol;
-use rand::{distributions::Uniform, prelude::Distribution, seq::SliceRandom, Rng};
+use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
 use std::{
     fmt,
     ops::{Add, AddAssign, MulAssign},
@@ -580,12 +580,14 @@ impl DiceExpression {
                 for j in bottom.. {
                     parts.push(random_dual(rng, i, i + 1));
                     i += 2;
-                    if i >= j { break; }
+                    if i >= j {
+                        break;
+                    }
                 }
             }
             let exp = DiceExpression { parts };
             if exp.could_be_negative() == 0 {
-                return exp
+                return exp;
             }
         }
         core::panic!("You got really unlucky!");

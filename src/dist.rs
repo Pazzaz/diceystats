@@ -60,14 +60,14 @@ where
                         d += i1;
                         d -= i2;
                     };
-                },
+                }
                 (true, false) => {
                     d += self.chance(i).unwrap();
-                },
+                }
                 (false, true) => {
                     d += other.chance(i).unwrap();
-                },
-                (false, false) => {},
+                }
+                (false, false) => {}
             }
         }
         d
