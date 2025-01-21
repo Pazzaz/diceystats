@@ -1,6 +1,6 @@
 use num::{FromPrimitive, Num};
 use peg::str::LineCol;
-use rand::Rng;
+use rand::{distributions::Uniform, prelude::Distribution, seq::SliceRandom, Rng};
 use std::{
     fmt,
     ops::{Add, AddAssign, MulAssign},
@@ -290,7 +290,7 @@ impl Evaluator<String> for StringEvaluator {
         let _aa = self.precedence.pop().unwrap();
         let _bb = self.precedence.pop().unwrap();
         self.precedence.push(8);
-        *a = format!("max({a}, {b})");
+        *a = format!("min({a}, {b})");
     }
 }
 
@@ -538,6 +538,57 @@ impl DiceExpression {
         let mut s = InvalidNegative { found: 0 };
         self.evaluate_generic(&mut s);
         s.found
+    }
+
+    pub fn bounds(&self) -> (isize, isize) {
+        let mut s = InvalidNegative { found: 0 };
+        let (a, b) = self.evaluate_generic(&mut s);
+        debug_assert!(a <= b);
+        (a, b)
+    }
+}
+
+fn random_none<R: Rng + ?Sized>(rng: &mut R, n: usize) -> Part {
+    let choices = [Part::Const(n as isize), Part::Dice(Dice { n })];
+    *choices.choose(rng).unwrap()
+}
+
+fn random_dual<R: Rng + ?Sized>(rng: &mut R, a: usize, b: usize) -> Part {
+    let choices = [
+        Part::Add(a, b),
+        Part::Sub(a, b),
+        Part::Mul(a, b),
+        Part::Min(a, b),
+        Part::Max(a, b),
+        Part::MultiAdd(a, b),
+    ];
+    *choices.choose(rng).unwrap()
+}
+
+impl DiceExpression {
+    pub fn make_random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
+        let dist = Uniform::new_inclusive(1, value_size);
+        let bottom = 2usize.pow(height as u32);
+        for _ in 0..10000 {
+            let mut parts = Vec::new();
+            for _ in 0..bottom {
+                let a1 = dist.sample(rng);
+                parts.push(random_none(rng, a1));
+            }
+            if height != 0 {
+                let mut i = 0;
+                for j in bottom.. {
+                    parts.push(random_dual(rng, i, i + 1));
+                    i += 2;
+                    if i >= j { break; }
+                }
+            }
+            let exp = DiceExpression { parts };
+            if exp.could_be_negative() == 0 {
+                return exp
+            }
+        }
+        core::panic!("You got really unlucky!");
     }
 }
 

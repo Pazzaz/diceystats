@@ -47,20 +47,27 @@ where
         let a = self.min_value().min(other.min_value());
         let b = self.max_value().max(other.max_value());
         for i in a..b {
-            if i < self.min_value() || self.max_value() < i {
-                d += other.chance(i).unwrap();
-            } else if i < other.min_value() || other.max_value() < i {
-                d += self.chance(i).unwrap();
-            } else {
-                let i1 = self.chance(i).unwrap();
-                let i2 = other.chance(i).unwrap();
-                if i1 < i2 {
-                    d += i2;
-                    d -= i1;
-                } else if i2 < i1 {
-                    d += i1;
-                    d -= i2;
-                };
+            let in_self = self.min_value() <= i && i <= self.max_value();
+            let in_other = other.min_value() <= i && i <= other.max_value();
+            match (in_self, in_other) {
+                (true, true) => {
+                    let i1 = self.chance(i).unwrap();
+                    let i2 = other.chance(i).unwrap();
+                    if i1 < i2 {
+                        d += i2;
+                        d -= i1;
+                    } else if i2 < i1 {
+                        d += i1;
+                        d -= i2;
+                    };
+                },
+                (true, false) => {
+                    d += self.chance(i).unwrap();
+                },
+                (false, true) => {
+                    d += other.chance(i).unwrap();
+                },
+                (false, false) => {},
             }
         }
         d
@@ -216,7 +223,7 @@ where
         let new_len = (max_value - min_value + 1) as usize;
         buffer.resize(new_len, T::zero());
 
-        let min_value_tmp = min_value.min(other.min_value());
+        let min_value_tmp = 0.min(min_value).min(other.min_value());
         let max_value_tmp = max_value.max(other.max_value());
         let tmp_len = (max_value_tmp - min_value_tmp + 1) as usize;
 
@@ -224,13 +231,11 @@ where
         let mut source = vec![T::zero(); tmp_len];
         let mut dest = vec![T::zero(); tmp_len];
 
-        for (b_i, b) in other.values.iter().enumerate() {
-            let index = b_i as isize + other.offset - min_value_tmp;
-            dest[index as usize] = b.clone();
-        }
+        // Empty sum is alsways zero
+        dest[(-min_value_tmp) as usize] = T::one();
 
         // First we iterate through the self.offset
-        for _ in 1..self.offset {
+        for _ in 0..self.offset {
             source.swap_with_slice(&mut dest);
 
             for d in dest.iter_mut() {
