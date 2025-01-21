@@ -216,6 +216,128 @@ impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
     }
 }
 
+struct Simplifier {}
+
+impl Evaluator<DiceExpression> for Simplifier {
+    const LOSSY: bool = false;
+
+    fn dice(&mut self, d: usize) -> DiceExpression {
+        if d == 1 {
+            DiceExpression::constant(1)
+        } else {
+            DiceExpression::dice(d)
+        }
+    }
+
+    fn constant(&mut self, n: isize) -> DiceExpression {
+        DiceExpression::constant(n)
+    }
+
+    fn negate_inplace(&mut self, a: &mut DiceExpression) {
+        match a.top_part() {
+            // Double negate => remove negate
+            Part::Const(n) => {
+                if n < 0 {
+                    a.parts.pop();
+                    a.parts.push(Part::Const(-n));
+                } else {
+                    a.negate_inplace()
+                }
+            },
+            Part::Negate(_) => {
+                a.parts.pop();
+            },
+            // Else we just negate
+            Part::Dice(_)
+            | Part::Add(_, _)  
+            | Part::Mul(_, _)
+            | Part::Sub(_, _)
+            | Part::Max(_, _)
+            | Part::Min(_, _)
+            | Part::MultiAdd(_, _) => {
+                a.negate_inplace();
+            },
+        }
+    }
+
+    fn repeat_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+        match (a.top_part(), b.top_part()) {
+            (Part::Const(aa), Part::Const(bb)) => {
+                *a = DiceExpression::constant(aa * bb);
+            }
+            (Part::Const(1), _) => {
+            }
+            (_, Part::Const(1)) => {
+                *a = b.clone();
+            }
+            (_, Part::Const(_)) => {
+                *a = DiceExpression::mul(a.clone(), b);
+            }
+            _ => {
+                a.multi_add_assign(b);
+            }
+        }
+    }
+
+    fn add_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+        match (a.top_part(), b.top_part()) {
+            (Part::Const(aa), Part::Const(bb)) => {
+                *a = DiceExpression::constant(aa + bb);
+            }
+            _ => {
+                a.add_assign(b);
+            }
+        }
+    }
+
+    fn mul_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+        match (a.top_part(), b.top_part()) {
+            (Part::Const(aa), Part::Const(bb)) => {
+                *a = DiceExpression::constant(aa * bb);
+            }
+            (Part::Const(1), _) => {
+                *a = b.clone();
+            }
+            (_, Part::Const(1)) => {
+            }
+            _ => {
+                a.mul_assign(b);
+            }
+        }
+    }
+
+    fn sub_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+        match (a.top_part(), b.top_part()) {
+            (Part::Const(aa), Part::Const(bb)) => {
+                *a = DiceExpression::constant(aa - bb);
+            }
+            _ => {
+                a.sub_assign(b);
+            }
+        }
+    }
+
+    fn max_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+        let a_bounds = a.bounds();
+        let b_bounds = b.bounds();
+        if a_bounds.1 <= b_bounds.0 {
+            *a = b.clone();
+        } else if !(b_bounds.1 <= a_bounds.0) {
+            a.max_assign(b);
+        }
+    }
+
+    fn min_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+        let a_bounds = a.bounds();
+        let b_bounds = b.bounds();
+        if b_bounds.1 <= a_bounds.0 {
+            *a = b.clone();
+        } else if !(a_bounds.1 <= b_bounds.0) {
+            a.min_assign(b);
+        }
+    }
+}
+
 struct StringEvaluator {
     precedence: Vec<usize>,
 }
@@ -336,6 +458,10 @@ impl EvaluateStage {
 }
 
 impl DiceExpression {
+    fn top_part(&self) -> Part {
+        *self.parts.last().unwrap()
+    }
+
     pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
         let mut e = SampleEvaluator { rng };
         self.evaluate_generic(&mut e)
@@ -372,7 +498,7 @@ impl DiceExpression {
     // Traverses the tree with an Evaluator.
     fn evaluate_generic<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
         let mut stack: Vec<EvaluateStage> =
-            vec![EvaluateStage::collect_from(*self.parts.last().unwrap())];
+            vec![EvaluateStage::collect_from(self.top_part())];
         let mut values: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {
             match x {
@@ -489,9 +615,13 @@ impl DiceExpression {
         Self { parts: vec![Part::Const(n)] }
     }
 
-    fn negate(mut self) -> Self {
+    fn negate_inplace(&mut self) {
         let orig_len = self.parts.len();
-        self.parts.push(Part::Negate(orig_len - 1));
+        self.parts.push(Part::Negate(orig_len - 1))
+    }
+
+    fn negate(mut self) -> Self {
+        self.negate_inplace();
         self
     }
 
@@ -546,6 +676,11 @@ impl DiceExpression {
         let (a, b) = self.evaluate_generic(&mut s);
         debug_assert!(a <= b);
         (a, b)
+    }
+
+    pub fn simplified(&self) -> DiceExpression {
+        let mut s = Simplifier {};
+        self.evaluate_generic(&mut s)
     }
 }
 
