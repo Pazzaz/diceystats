@@ -118,4 +118,10 @@ mod tests {
             BigRational::new(BigInt::from(55), BigInt::from(2))
         );
     }
+
+    #[test]
+    fn negative_repeat() {
+        let goal: DiceExpression = "d1x(-(d2))".parse().unwrap();
+        let _dist1 = goal.dist::<f64>();
+    }
 }

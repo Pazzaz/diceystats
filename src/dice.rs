@@ -13,6 +13,7 @@ use crate::Dist;
 enum Part {
     Dice(usize),
     Const(isize),
+    Negate(usize),
     Add(usize, usize),
     Mul(usize, usize),
     Sub(usize, usize),
@@ -27,6 +28,7 @@ impl Part {
         match *self {
             Part::Dice(dice) => Part::Dice(dice),
             Part::Const(n) => Part::Const(n),
+            Part::Negate(a) => Part::Negate(a + n),
             Part::Add(a, b) => Part::Add(a + n, b + n),
             Part::Mul(a, b) => Part::Mul(a + n, b + n),
             Part::Sub(a, b) => Part::Sub(a + n, b + n),
@@ -60,6 +62,7 @@ trait Evaluator<T> {
     fn repeat_inplace(&mut self, _a: &mut T, _b: &T) {
         unreachable!("Only used if operations are not LOSSY");
     }
+    fn negate_inplace(&mut self, a: &mut T);
     fn add_inplace(&mut self, a: &mut T, b: &T);
     fn mul_inplace(&mut self, a: &mut T, b: &T);
     fn sub_inplace(&mut self, a: &mut T, b: &T);
@@ -88,6 +91,10 @@ where
 
     fn repeat_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
         a.repeat(b, &mut self.buffer);
+    }
+    
+    fn negate_inplace(&mut self, a: &mut Dist<T>) {
+        a.negate_inplace();
     }
 
     fn add_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
@@ -138,6 +145,10 @@ impl Evaluator<(isize, isize)> for InvalidNegative {
         *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
     }
 
+    fn negate_inplace(&mut self, a: &mut (isize, isize)) {
+        *a = (-a.1, -a.0);
+    }
+
     fn add_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
         *a = (a.0 + b.0, a.1 + b.1)
     }
@@ -179,6 +190,10 @@ impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
     fn constant(&mut self, n: isize) -> isize {
         n
     }
+    
+    fn negate_inplace(&mut self, a: &mut isize) {
+        *a = -*a;
+    }
 
     fn add_inplace(&mut self, a: &mut isize, b: &isize) {
         *a += b;
@@ -209,7 +224,7 @@ impl Evaluator<String> for StringEvaluator {
     const LOSSY: bool = false;
 
     fn dice(&mut self, d: usize) -> String {
-        self.precedence.push(7);
+        self.precedence.push(8);
         format!("d{}", d)
     }
 
@@ -226,8 +241,14 @@ impl Evaluator<String> for StringEvaluator {
     }
 
     fn constant(&mut self, n: isize) -> String {
-        self.precedence.push(6);
+        self.precedence.push(7);
         format!("{}", n)
+    }
+    
+    fn negate_inplace(&mut self, a: &mut String) {
+        let _aa = self.precedence.pop().unwrap();
+        self.precedence.push(6);
+        *a = format!("-({a})");
     }
 
     fn add_inplace(&mut self, a: &mut String, b: &String) {
@@ -283,12 +304,14 @@ enum EvaluateStage {
     MultiAddCollect,
     MultiAddCollectPartial(usize),
     MultiAddExtra(usize),
-
+    
+    NegateCreate(usize),
     AddCreate(usize, usize),
     SubCreate(usize, usize),
     MulCreate(usize, usize),
     MaxCreate(usize, usize),
     MinCreate(usize, usize),
+    NegateCollect,
     AddCollect,
     SubCollect,
     MulCollect,
@@ -301,6 +324,7 @@ impl EvaluateStage {
         match part {
             Part::Dice(dice) => EvaluateStage::Dice(dice),
             Part::Const(n) => EvaluateStage::Const(n),
+            Part::Negate(a) => EvaluateStage::NegateCreate(a),
             Part::Add(a, b) => EvaluateStage::AddCreate(a, b),
             Part::Sub(a, b) => EvaluateStage::SubCreate(a, b),
             Part::Mul(a, b) => EvaluateStage::MulCreate(a, b),
@@ -388,6 +412,10 @@ impl DiceExpression {
                     }
                     values.push(res);
                 }
+                EvaluateStage::NegateCreate(a) => {
+                    stack.push(EvaluateStage::NegateCollect);
+                    stack.push(EvaluateStage::collect_from(self.parts[a]));
+                }
                 EvaluateStage::AddCreate(a, b) => {
                     stack.push(EvaluateStage::AddCollect);
                     stack.push(EvaluateStage::collect_from(self.parts[a]));
@@ -412,6 +440,11 @@ impl DiceExpression {
                     stack.push(EvaluateStage::MaxCollect);
                     stack.push(EvaluateStage::collect_from(self.parts[a]));
                     stack.push(EvaluateStage::collect_from(self.parts[b]));
+                }
+                EvaluateStage::NegateCollect => {
+                    let mut aa = values.pop().unwrap();
+                    state.negate_inplace(&mut aa);
+                    values.push(aa);
                 }
                 EvaluateStage::AddCollect => {
                     let mut aa = values.pop().unwrap();
@@ -454,6 +487,12 @@ impl DiceExpression {
 
     fn constant(n: isize) -> Self {
         Self { parts: vec![Part::Const(n)] }
+    }
+
+    fn negate(mut self) -> Self {
+        let orig_len = self.parts.len();
+        self.parts.push(Part::Negate(orig_len - 1));
+        self
     }
 
     fn op_double_inplace(&mut self, other: &DiceExpression) -> (usize, usize) {
@@ -658,8 +697,8 @@ peg::parser! {
                 let nn2 = DiceExpression::dice(n2);
                 nn1.multi_add(&nn2)
             }
+            "-" e:arithmetic() { e.negate() }
             n:number() { DiceExpression::constant(n as isize) }
-            "-" n:number() { DiceExpression::constant(-(n as isize)) }
             "d" n:number() { DiceExpression::dice(n) }
             "min(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.min(&b)).unwrap() }
             "max(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.max(&b)).unwrap() }

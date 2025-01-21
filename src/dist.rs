@@ -102,6 +102,11 @@ impl<T> Dist<T> {
     pub fn chance(&self, n: isize) -> Option<&T> {
         usize::try_from(n - self.offset).ok().and_then(|x| self.values.get(x))
     }
+
+    pub(crate) fn negate_inplace(&mut self) {
+        self.offset = -self.max_value();
+        self.values.reverse();
+    }
 }
 
 impl<T: Num + FromPrimitive> Dist<T> {
@@ -224,7 +229,7 @@ where
         buffer.resize(new_len, T::zero());
 
         let min_value_tmp = 0.min(min_value).min(other.min_value());
-        let max_value_tmp = max_value.max(other.max_value());
+        let max_value_tmp = 0.max(max_value).max(other.max_value());
         let tmp_len = (max_value_tmp - min_value_tmp + 1) as usize;
 
         // We have a second buffer which tracks the chance of getting X with "current_i" iterations
