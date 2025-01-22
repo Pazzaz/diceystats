@@ -10,85 +10,68 @@ use super::{DiceExpression, Evaluator};
 /// ```
 impl fmt::Display for DiceExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut e = StringEvaluator { precedence: Vec::new() };
+        let mut e = StringEvaluator {};
         let res = self.evaluate_generic(&mut e);
-        write!(f, "{}", res)
+        write!(f, "{}", res.0)
     }
 }
 
-struct StringEvaluator {
-    precedence: Vec<usize>,
-}
+struct StringEvaluator {}
 
-impl Evaluator<String> for StringEvaluator {
+impl Evaluator<(String, usize)> for StringEvaluator {
     const LOSSY: bool = false;
 
-    fn dice(&mut self, d: usize) -> String {
-        self.precedence.push(8);
-        format!("d{}", d)
+    fn dice(&mut self, d: usize) -> (String, usize) {
+        (format!("d{}", d), 8)
     }
 
-    fn repeat_inplace(&mut self, a: &mut String, b: &String) {
-        let aa = self.precedence.pop().unwrap();
-        let bb = self.precedence.pop().unwrap();
-        self.precedence.push(3);
-        *a = match (aa >= 3, bb > 3) {
+    fn repeat_inplace(&mut self, (a, aa): &mut (String, usize), (b, bb): &(String, usize)) {
+        *a = match (*aa >= 3, *bb > 3) {
             (true, true) => format!("{a}x{b}"),
             (true, false) => format!("{a}x({b})"),
             (false, true) => format!("({a})x{b}"),
             (false, false) => format!("({a})x({b})"),
         };
+        *aa = 3;
     }
 
-    fn constant(&mut self, n: isize) -> String {
-        self.precedence.push(7);
-        format!("{}", n)
+    fn constant(&mut self, n: isize) -> (String, usize) {
+        (format!("{}", n), 7)
     }
 
-    fn negate_inplace(&mut self, a: &mut String) {
-        let _aa = self.precedence.pop().unwrap();
-        self.precedence.push(6);
+    fn negate_inplace(&mut self, (a, aa): &mut (String, usize)) {
         *a = format!("-({a})");
+        *aa = 6;
     }
 
-    fn add_inplace(&mut self, a: &mut String, b: &String) {
-        let _aa = self.precedence.pop().unwrap();
-        let bb = self.precedence.pop().unwrap();
-        self.precedence.push(0);
-        if bb == 0 { *a = format!("{a} + ({b})") } else { *a = format!("{a} + {b}") }
+    fn add_inplace(&mut self, (a, aa): &mut (String, usize), (b, bb): &(String, usize)) {
+        if *bb == 0 { *a = format!("{a} + ({b})") } else { *a = format!("{a} + {b}") }
+        *aa = 0;
     }
 
-    fn mul_inplace(&mut self, a: &mut String, b: &String) {
-        let aa = self.precedence.pop().unwrap();
-        let bb = self.precedence.pop().unwrap();
-        self.precedence.push(2);
-        *a = match (aa >= 2, bb > 2) {
+    fn mul_inplace(&mut self, (a, aa): &mut (String, usize), (b, bb): &(String, usize)) {
+        *a = match (*aa >= 2, *bb > 2) {
             (true, true) => format!("{a} * {b}"),
             (true, false) => format!("{a} * ({b})"),
             (false, true) => format!("({a}) * {b}"),
             (false, false) => format!("({a}) * ({b})"),
         };
+        *aa = 2;
     }
 
-    fn sub_inplace(&mut self, a: &mut String, b: &String) {
-        let _aa = self.precedence.pop().unwrap();
-        let bb = self.precedence.pop().unwrap();
-        self.precedence.push(0);
-        *a = if bb > 0 { format!("{a} - {b}") } else { format!("{a} - ({b})") };
+    fn sub_inplace(&mut self, (a, aa): &mut (String, usize), (b, bb): &(String, usize)) {
+        *a = if *bb > 0 { format!("{a} - {b}") } else { format!("{a} - ({b})") };
+        *aa = 0;
     }
 
-    fn max_inplace(&mut self, a: &mut String, b: &String) {
-        let _aa = self.precedence.pop().unwrap();
-        let _bb = self.precedence.pop().unwrap();
-        self.precedence.push(9);
+    fn max_inplace(&mut self, (a, aa): &mut (String, usize), (b, _): &(String, usize)) {
         *a = format!("max({a}, {b})");
+        *aa = 9;
     }
 
-    fn min_inplace(&mut self, a: &mut String, b: &String) {
-        let _aa = self.precedence.pop().unwrap();
-        let _bb = self.precedence.pop().unwrap();
-        self.precedence.push(8);
+    fn min_inplace(&mut self, (a, aa): &mut (String, usize), (b, _): &(String, usize)) {
         *a = format!("min({a}, {b})");
+        *aa = 8;
     }
 }
 
