@@ -32,7 +32,7 @@ impl DiceExpression {
     pub fn make_random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
         let dist = Uniform::new_inclusive(1, value_size);
         let bottom = 2usize.pow(height as u32);
-        for _ in 0..10000 {
+        loop {
             let mut parts = Vec::new();
             for _ in 0..bottom {
                 let a1 = dist.sample(rng);
@@ -53,7 +53,6 @@ impl DiceExpression {
                 return exp;
             }
         }
-        core::panic!("You got really unlucky!");
     }
 }
 
