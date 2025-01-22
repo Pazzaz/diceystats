@@ -69,7 +69,7 @@ mod tests {
         let a = DiceExpression::from_str("1 * 2").unwrap();
         let b = DiceExpression::from_str("3 * 4").unwrap();
         let c = DiceExpression::from_str("1 * 2 + 3 * 4").unwrap();
-        assert_eq!(a + &b, c);
+        assert_eq!(a + b, c);
     }
 
     #[test]
@@ -77,7 +77,7 @@ mod tests {
         let a = DiceExpression::from_str("1 * 2").unwrap();
         let b = DiceExpression::from_str("3 * 4").unwrap();
         let c = DiceExpression::from_str("1 * 2 - 3 * 4").unwrap();
-        assert_eq!(a - &b, c);
+        assert_eq!(a - b, c);
     }
 
     #[test]
@@ -85,7 +85,7 @@ mod tests {
         let a = DiceExpression::from_str("1 * 2").unwrap();
         let b = DiceExpression::from_str("3 * 4").unwrap();
         let c = DiceExpression::from_str("(1 * 2) * (3 * 4)").unwrap();
-        assert_eq!(a * &b, c);
+        assert_eq!(a * b, c);
     }
 
     #[test]
@@ -112,7 +112,7 @@ mod tests {
         let d = DiceExpression::from_str("4").unwrap();
         let e = DiceExpression::from_str("5").unwrap();
         let f = DiceExpression::from_str("(1 + 2 * 3 x 4) * 5").unwrap();
-        assert_eq!((a + &(b * &(c.multi_add(&d)))) * &e, f);
+        assert_eq!((a + (b * (c.multi_add(&d)))) * e, f);
     }
 
     #[test]

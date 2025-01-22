@@ -365,6 +365,15 @@ impl Add<&Self> for DiceExpression {
     }
 }
 
+impl Add<Self> for DiceExpression {
+    type Output = Self;
+
+    fn add(mut self, other: Self) -> Self {
+        self.add_assign(&other);
+        self
+    }
+}
+
 impl MulAssign<&Self> for DiceExpression {
     fn mul_assign(&mut self, other: &Self) {
         let (a, b) = self.op_double_inplace(other);
@@ -381,6 +390,15 @@ impl Mul<&Self> for DiceExpression {
     }
 }
 
+impl Mul<Self> for DiceExpression {
+    type Output = Self;
+
+    fn mul(mut self, other: Self) -> Self {
+        self.mul_assign(&other);
+        self
+    }
+}
+
 impl SubAssign<&Self> for DiceExpression {
     fn sub_assign(&mut self, other: &Self) {
         let (a, b) = self.op_double_inplace(other);
@@ -393,6 +411,15 @@ impl Sub<&Self> for DiceExpression {
 
     fn sub(mut self, other: &Self) -> Self {
         self.sub_assign(other);
+        self
+    }
+}
+
+impl Sub<Self> for DiceExpression {
+    type Output = Self;
+
+    fn sub(mut self, other: Self) -> Self {
+        self.sub_assign(&other);
         self
     }
 }
