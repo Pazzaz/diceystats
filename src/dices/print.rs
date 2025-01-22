@@ -45,7 +45,7 @@ impl Evaluator<(String, usize)> for StringEvaluator {
     }
 
     fn add_inplace(&mut self, (a, aa): &mut (String, usize), (b, bb): &(String, usize)) {
-        if *bb == 0 { *a = format!("{a} + ({b})") } else { *a = format!("{a} + {b}") }
+        *a = if *bb == 0 { format!("{a} + ({b})") } else { format!("{a} + {b}") };
         *aa = 0;
     }
 

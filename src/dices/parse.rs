@@ -117,14 +117,7 @@ mod tests {
 
     #[test]
     fn wrong_parenthesis() {
-        let wrong = [
-            "( ) 4",
-            "(4))",
-            "(4 + ) 4",
-            "d(1)",
-            "(d1x)10",
-            "d1(x10)",
-        ];
+        let wrong = ["( ) 4", "(4))", "(4 + ) 4", "d(1)", "(d1x)10", "d1(x10)"];
         for s in wrong {
             let f = DiceExpression::from_str(s);
             assert!(f.is_err(), "{}", s);

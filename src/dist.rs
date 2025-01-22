@@ -1,6 +1,8 @@
 use core::panic;
 use std::{
-    cmp::Ordering, fmt::Debug, ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign}
+    cmp::Ordering,
+    fmt::Debug,
+    ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
 };
 
 use num::{FromPrimitive, Num};
@@ -90,36 +92,34 @@ where
         let b = self.max_value().max(other.max_value());
         for i in a..b {
             match (&self.chance(i), &other.chance(i)) {
-                (None, None) => {},
+                (None, None) => {}
                 (None, &Some(bb)) => {
                     if *bb > d {
                         d = bb.clone();
                     }
-                },
+                }
                 (&Some(aa), None) => {
                     if *aa > d {
                         d = aa.clone();
                     }
-                },
-                (&Some(aa), &Some(bb)) => {
-                    match aa.partial_cmp(&bb) {
-                        Some(Ordering::Equal) => {}
-                        Some(Ordering::Greater) => {
-                            let mut res = aa.clone();
-                            res -= bb;
-                            if res > d {
-                                d = res;
-                            }
-                        },
-                        Some(Ordering::Less) => {
-                            let mut res = bb.clone();
-                            res -= aa;
-                            if res > d {
-                                d = res;
-                            }
-                        },
-                        None => panic!("Non-comparable"),
+                }
+                (&Some(aa), &Some(bb)) => match aa.partial_cmp(&bb) {
+                    Some(Ordering::Equal) => {}
+                    Some(Ordering::Greater) => {
+                        let mut res = aa.clone();
+                        res -= bb;
+                        if res > d {
+                            d = res;
+                        }
                     }
+                    Some(Ordering::Less) => {
+                        let mut res = bb.clone();
+                        res -= aa;
+                        if res > d {
+                            d = res;
+                        }
+                    }
+                    None => panic!("Non-comparable"),
                 },
             }
         }

@@ -84,7 +84,6 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use num::BigRational;
@@ -92,14 +91,11 @@ mod tests {
     use super::*;
     extern crate test;
     use test::Bencher;
-    
+
     #[test]
     fn repeat_simple() {
         let yep: DiceExpression = "d9xd10".parse().unwrap();
-        assert_eq!(
-            yep.dist::<BigRational>().mean(),
-            "55/2".parse().unwrap(),
-        );
+        assert_eq!(yep.dist::<BigRational>().mean(), "55/2".parse().unwrap(),);
     }
 
     #[bench]

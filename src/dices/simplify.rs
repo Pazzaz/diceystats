@@ -136,7 +136,6 @@ mod tests {
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 
-    
     #[test]
     fn simplify_random() {
         let mut rng = ChaCha20Rng::seed_from_u64(123);
