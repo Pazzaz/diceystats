@@ -141,6 +141,8 @@ mod tests {
     fn simplify_random() {
         let mut rng = ChaCha20Rng::seed_from_u64(123);
         for _ in 0..200 {
+            // Generate a random expression and check if its
+            // distribution is the same after being simplified.
             let a = DiceExpression::make_random(&mut rng, 2, 10);
             let a_simple = a.simplified();
             let dist = a.dist::<f64>();
