@@ -96,3 +96,27 @@ impl Evaluator<String> for StringEvaluator {
         *a = format!("min({a}, {b})");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+    extern crate test;
+
+    macro_rules! test {
+        ($f:ident, $right:expr, $($wrong:expr),+) => {
+            #[test]
+            fn $f() {
+                $(
+                    let a = DiceExpression::from_str($wrong).unwrap();
+                    assert_eq!($right, a.to_string());
+                )+
+            }
+        };
+    }
+
+    test!(add_mul, "(1 + 2) * 3", "((1+2)*3)");
+    test!(sub_sub, "-10 - -20", "-10--20");
+    test!(many_ops, "1xd2 - 3 + 4 * -2", "1xd2-3+4*-2", "(((1xd2)-3)+4*-2)");
+}

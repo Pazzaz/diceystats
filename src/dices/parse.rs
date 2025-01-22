@@ -44,6 +44,7 @@ peg::parser! {
                 let nn2 = DiceExpression::dice(n2);
                 nn1.multi_add(&nn2)
             }
+            "-" n:number() { DiceExpression::constant(-(n as isize)) }
             "-" e:arithmetic() { e.negate() }
             n:number() { DiceExpression::constant(n as isize) }
             "d" n:number() { DiceExpression::dice(n) }
