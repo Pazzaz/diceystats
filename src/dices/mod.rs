@@ -6,7 +6,7 @@ mod print;
 mod random;
 mod simplify;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum Part {
     Dice(usize),
     Const(isize),
@@ -44,7 +44,7 @@ impl Part {
 /// let x: DiceExpression = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
 /// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)")
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DiceExpression {
     parts: Vec<Part>,
 }

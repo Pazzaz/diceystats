@@ -54,3 +54,78 @@ peg::parser! {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+    extern crate test;
+
+    #[test]
+    fn add() {
+        let a = DiceExpression::from_str("1 * 2").unwrap();
+        let b = DiceExpression::from_str("3 * 4").unwrap();
+        let c = DiceExpression::from_str("1 * 2 + 3 * 4").unwrap();
+        assert_eq!(a + &b, c);
+    }
+
+    #[test]
+    fn sub() {
+        let a = DiceExpression::from_str("1 * 2").unwrap();
+        let b = DiceExpression::from_str("3 * 4").unwrap();
+        let c = DiceExpression::from_str("1 * 2 - 3 * 4").unwrap();
+        assert_eq!(a - &b, c);
+    }
+
+    #[test]
+    fn mul() {
+        let a = DiceExpression::from_str("1 * 2").unwrap();
+        let b = DiceExpression::from_str("3 * 4").unwrap();
+        let c = DiceExpression::from_str("(1 * 2) * (3 * 4)").unwrap();
+        assert_eq!(a * &b, c);
+    }
+
+    #[test]
+    fn max() {
+        let a = DiceExpression::from_str("1 * 2").unwrap();
+        let b = DiceExpression::from_str("3 * 4").unwrap();
+        let c = DiceExpression::from_str("max(1 * 2, 3 * 4)").unwrap();
+        assert_eq!(a.max(&b), c);
+    }
+
+    #[test]
+    fn min() {
+        let a = DiceExpression::from_str("1 * 2").unwrap();
+        let b = DiceExpression::from_str("3 * 4").unwrap();
+        let c = DiceExpression::from_str("min(1 * 2, 3 * 4)").unwrap();
+        assert_eq!(a.min(&b), c);
+    }
+
+    #[test]
+    fn precedence() {
+        let a = DiceExpression::from_str("1").unwrap();
+        let b = DiceExpression::from_str("2").unwrap();
+        let c = DiceExpression::from_str("3").unwrap();
+        let d = DiceExpression::from_str("4").unwrap();
+        let e = DiceExpression::from_str("5").unwrap();
+        let f = DiceExpression::from_str("(1 + 2 * 3 x 4) * 5").unwrap();
+        assert_eq!((a + &(b * &(c.multi_add(&d)))) * &e, f);
+    }
+
+    #[test]
+    fn wrong_parenthesis() {
+        let wrong = [
+            "( ) 4",
+            "(4))",
+            "(4 + ) 4",
+            "d(1)",
+            "(d1x)10",
+            "d1(x10)",
+        ];
+        for s in wrong {
+            let f = DiceExpression::from_str(s);
+            assert!(f.is_err(), "{}", s);
+        }
+    }
+}

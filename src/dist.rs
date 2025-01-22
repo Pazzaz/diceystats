@@ -33,10 +33,11 @@ impl<T: num::Zero + PartialOrd + Debug + Clone> Dist<T>
 where
     for<'a> T: AddAssign<&'a T> + SubAssign<&'a T>,
 {
-    /// Distance between two distributions, measured by elementwise difference of probabilities
+    /// Distance between two distributions, measured by total elementwise difference of probabilities
     /// ```
     /// use diceystats::{DiceExpression, Dist};
     /// use num::BigRational;
+    ///
     /// let expr1 = "d4xd3".parse::<DiceExpression>().unwrap();
     /// let expr2 = "d4+d6".parse::<DiceExpression>().unwrap();
     /// let d: BigRational = expr1.dist().distance(&expr2.dist());
@@ -73,6 +74,16 @@ where
         d
     }
 
+    /// Distance between two distributions, measured by maximum elementwise difference of probabilities
+    /// ```
+    /// use diceystats::{DiceExpression, Dist};
+    /// use num::BigRational;
+    ///
+    /// let expr1 = "d4xd3".parse::<DiceExpression>().unwrap();
+    /// let expr2 = "d4+d6".parse::<DiceExpression>().unwrap();
+    /// let d: BigRational = expr1.dist().distance_max(&expr2.dist());
+    /// assert_eq!(d, "1/12".parse().unwrap())
+    /// ```
     pub fn distance_max(&self, other: &Dist<T>) -> T {
         let mut d: T = T::zero();
         let a = self.min_value().min(other.min_value());

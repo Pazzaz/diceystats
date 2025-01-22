@@ -20,6 +20,13 @@ fn random_dual<R: Rng + ?Sized>(rng: &mut R, a: usize, b: usize) -> Part {
 }
 
 impl DiceExpression {
+    /// Evaluate the expression into a single number, rolling dice using `rng`.
+    pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
+        let mut e = SampleEvaluator { rng };
+        self.evaluate_generic(&mut e)
+    }
+
+    /// Create a random expression, modeleted as a tree with some `height` and maximum die / constant `value_size`.
     pub fn make_random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
         let dist = Uniform::new_inclusive(1, value_size);
         let bottom = 2usize.pow(height as u32);
@@ -45,11 +52,6 @@ impl DiceExpression {
             }
         }
         core::panic!("You got really unlucky!");
-    }
-
-    pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
-        let mut e = SampleEvaluator { rng };
-        self.evaluate_generic(&mut e)
     }
 }
 
