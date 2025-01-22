@@ -279,9 +279,6 @@ where
 
         // Then the rest
         for a in self.values.iter().skip(1) {
-            if a.is_zero() {
-                continue;
-            }
             source.swap_with_slice(&mut dest);
 
             for d in dest.iter_mut() {
@@ -303,6 +300,9 @@ where
                     res *= c;
                     dest[d_i] += res;
                 }
+            }
+            if a.is_zero() {
+                continue;
             }
 
             for (d_i, d) in dest.iter().enumerate() {

@@ -43,10 +43,10 @@ impl Evaluator<DiceExpression> for Simplifier {
             (Part::Const(aa), Part::Const(bb)) => {
                 *a = DiceExpression::constant(aa * bb);
             }
-            (Part::Const(1), _) => {}
-            (_, Part::Const(1)) => {
+            (Part::Const(1), _) => {
                 *a = b.clone();
             }
+            (_, Part::Const(1)) => {}
             (_, Part::Const(_)) => {
                 *a = DiceExpression::mul(a.clone(), b);
             }
@@ -126,5 +126,26 @@ impl DiceExpression {
     pub fn simplified(&self) -> DiceExpression {
         let mut s = Simplifier {};
         self.evaluate_generic(&mut s)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    extern crate test;
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha20Rng;
+
+    
+    #[test]
+    fn simplify_random() {
+        let mut rng = ChaCha20Rng::seed_from_u64(123);
+        for _ in 0..200 {
+            let a = DiceExpression::make_random(&mut rng, 2, 10);
+            let a_simple = a.simplified();
+            let dist = a.dist::<f64>();
+            let simple_dist = a_simple.dist::<f64>();
+            assert!(dist.distance(&simple_dist) <= 0.01, "{a} = {a_simple}");
+        }
     }
 }

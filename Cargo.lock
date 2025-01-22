@@ -27,6 +27,7 @@ dependencies = [
  "num",
  "peg",
  "rand",
+ "rand_chacha",
 ]
 
 [[package]]

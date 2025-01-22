@@ -7,3 +7,6 @@ edition = "2024"
 num = "0.4.3"
 peg = "0.8.4"
 rand = "0.8.5"
+
+[dev-dependencies]
+rand_chacha = "0.3.1"
