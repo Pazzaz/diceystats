@@ -46,7 +46,7 @@ use std::str::FromStr;
 pub use dices::DiceExpression;
 use dices::parse::DiceParseError;
 pub use dist::Dist;
-use rand::Rng;
+use rand::{Rng, prelude::Distribution};
 
 /// Roll a set of dice.
 ///

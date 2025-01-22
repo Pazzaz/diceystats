@@ -19,13 +19,15 @@ fn random_dual<R: Rng + ?Sized>(rng: &mut R, a: usize, b: usize) -> Part {
     *choices.choose(rng).unwrap()
 }
 
-impl DiceExpression {
+impl Distribution<isize> for DiceExpression {
     /// Evaluate the expression into a single number, rolling dice using `rng`.
-    pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
         let mut e = SampleEvaluator { rng };
         self.evaluate_generic(&mut e)
     }
+}
 
+impl DiceExpression {
     /// Create a random expression, modeleted as a tree with some `height` and maximum die / constant `value_size`.
     pub fn make_random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
         let dist = Uniform::new_inclusive(1, value_size);
