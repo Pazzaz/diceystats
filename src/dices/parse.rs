@@ -62,6 +62,8 @@ mod tests {
     use super::*;
     extern crate test;
 
+    use test::Bencher;
+
     #[test]
     fn add() {
         let a = DiceExpression::from_str("1 * 2").unwrap();
@@ -127,5 +129,19 @@ mod tests {
             let f = DiceExpression::from_str(s);
             assert!(f.is_err(), "{}", s);
         }
+    }
+
+    #[test]
+    fn negative_repeat() {
+        let goal = DiceExpression::from_str("d1x(-(d2))");
+        assert!(goal.is_ok());
+    }
+
+    #[bench]
+    fn parsing(b: &mut Bencher) {
+        b.iter(|| {
+            let yep: DiceExpression = "d30 + (d20xd30*d43423x(d20 + d4*d32 + 43))".parse().unwrap();
+            test::black_box(yep);
+        });
     }
 }

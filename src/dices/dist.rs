@@ -83,3 +83,58 @@ where
         a.min_inplace(b, &mut self.buffer);
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use num::BigRational;
+
+    use super::*;
+    extern crate test;
+    use test::Bencher;
+    
+    #[test]
+    fn repeat_simple() {
+        let yep: DiceExpression = "d9xd10".parse().unwrap();
+        assert_eq!(
+            yep.dist::<BigRational>().mean(),
+            "55/2".parse().unwrap(),
+        );
+    }
+
+    #[bench]
+    fn eval_6dx6d(b: &mut Bencher) {
+        let yep: DiceExpression = "d6xd6".parse().unwrap();
+        b.iter(|| {
+            let res: Dist<BigRational> = yep.dist();
+            test::black_box(res);
+        });
+    }
+
+    #[bench]
+    fn f64_30dx30d(b: &mut Bencher) {
+        let yep: DiceExpression = "d30xd30".parse().unwrap();
+        b.iter(|| {
+            let res: Dist<f64> = yep.dist();
+            test::black_box(res);
+        });
+    }
+
+    #[bench]
+    fn many_additions(b: &mut Bencher) {
+        let yep: DiceExpression = "d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20".parse().unwrap();
+        b.iter(|| {
+            let res: Dist<f64> = yep.dist();
+            test::black_box(res);
+        });
+    }
+
+    #[bench]
+    fn many_multiplications(b: &mut Bencher) {
+        let yep: DiceExpression = "d20*d20*d20".parse().unwrap();
+        b.iter(|| {
+            let res: Dist<f64> = yep.dist();
+            test::black_box(res);
+        });
+    }
+}
