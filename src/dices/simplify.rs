@@ -2,6 +2,8 @@ use std::ops::{AddAssign, Mul, MulAssign, SubAssign};
 
 use super::{DiceExpression, Evaluator, Part};
 
+// Traverses a `DiceExpression` and creates a simplified `DiceExpression`
+// using local/peephole optimizations.
 struct Simplifier {}
 
 impl Evaluator<DiceExpression> for Simplifier {
@@ -38,7 +40,7 @@ impl Evaluator<DiceExpression> for Simplifier {
         }
     }
 
-    fn repeat_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+    fn multi_add_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
         match (a.top_part(), b.top_part()) {
             (Part::Const(aa), Part::Const(bb)) => {
                 *a = DiceExpression::constant(aa * bb);
@@ -125,7 +127,7 @@ impl DiceExpression {
     /// ```
     pub fn simplified(&self) -> DiceExpression {
         let mut s = Simplifier {};
-        self.evaluate_generic(&mut s)
+        self.traverse(&mut s)
     }
 }
 

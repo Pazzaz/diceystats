@@ -32,7 +32,7 @@ impl DiceExpression {
             + FromPrimitive,
     {
         let mut e = DistEvaluator { buffer: Vec::new() };
-        self.evaluate_generic(&mut e)
+        self.traverse(&mut e)
     }
 }
 
@@ -55,8 +55,8 @@ where
         Dist::constant(n)
     }
 
-    fn repeat_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
-        a.repeat(b, &mut self.buffer);
+    fn multi_add_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.multi_add_inplace(b, &mut self.buffer);
     }
 
     fn negate_inplace(&mut self, a: &mut Dist<T>) {

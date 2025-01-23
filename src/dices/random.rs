@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::{Add, Mul, Sub}};
 
 use num::BigRational;
 use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
@@ -28,7 +28,7 @@ impl Distribution<isize> for DiceExpression {
     /// Evaluate the expression into a single number, rolling dice using `rng`.
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
         let mut e = SampleEvaluator { rng };
-        self.evaluate_generic(&mut e)
+        self.traverse(&mut e)
     }
 }
 
@@ -41,11 +41,8 @@ pub struct Config<'a> {
 
 pub fn make_all(config: &Config) -> Vec<(Dist<BigRational>, DiceExpression)> {
     let mut expressions: HashMap<Dist<BigRational>, DiceExpression> = HashMap::default();
-    let Config { height, dice, constants, bounds: (min_value, max_value) } = *config;
+    let Config { height, dice, constants, bounds } = *config;
     for &i in dice {
-        // let c = DiceExpression::constant(i as isize);
-        // let c_dist = c.dist::<BigRational>();
-        // expressions.entry(c_dist).or_insert(c);
         let d = DiceExpression::dice(i);
         let d_dist = d.dist::<BigRational>();
         expressions.entry(d_dist).or_insert(d);
@@ -65,66 +62,37 @@ pub fn make_all(config: &Config) -> Vec<(Dist<BigRational>, DiceExpression)> {
             .collect();
         println!("{}", sorted.len());
         sorted.sort();
-        // Commutative expressions
         let mut buffer: Vec<BigRational> = Vec::new();
         let mut s = InvalidNegative::new();
+        macro_rules! add_if_bounded {
+            ($f1:expr, $f2:expr, $f3:expr, $a_bounds:expr, $b_bounds:expr, $a_dist:expr, $b_dist:expr, $a:expr, $b:expr) => {
+                let mut c_bounds = $a_bounds;
+                $f1(&mut s, &mut c_bounds, $b_bounds);
+                if i < (height - 1) || (bounds.0 <= c_bounds.0 && c_bounds.1 <= bounds.1) {
+                    let mut c_dist = $a_dist.clone();
+                    $f2(&mut c_dist, $b_dist, &mut buffer);
+                    expressions.entry(c_dist).or_insert_with(|| $f3($a.clone(), $b).simplified());
+                }
+            };
+        }
+        // Commutative expressions
         for (a_i, (a, a_bounds, a_dist)) in sorted.iter().enumerate() {
             println!("A: {} / {} : {} : {}", a_i + 1, sorted.len(), expressions.len(), a);
             for (b_i, (b, b_bounds, b_dist)) in sorted.iter().enumerate() {
                 if b_i > a_i {
                     break;
                 }
-                {
-                    let mut c_bounds = a_bounds.clone();
-                    s.add_inplace(&mut c_bounds, &b_bounds);
-                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
-                        let mut c_dist = a_dist.clone();
-                        c_dist.add_inplace(&b_dist, &mut buffer);
-                        expressions.entry(c_dist).or_insert((a.clone() + b).simplified());
-                    }
-                }
-                {
-                    let mut c_bounds = a_bounds.clone();
-                    s.mul_inplace(&mut c_bounds, &b_bounds);
-                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
-                        let mut c_dist = a_dist.clone();
-                        c_dist.mul_inplace(&b_dist, &mut buffer);
-                        expressions.entry(c_dist).or_insert((a.clone() * b).simplified());
-                    }
-                }
-                {
-                    let mut c_bounds = a_bounds.clone();
-                    s.max_inplace(&mut c_bounds, &b_bounds);
-                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
-                        let mut c_dist = a_dist.clone();
-                        c_dist.max_inplace(&b_dist, &mut buffer);
-                        expressions.entry(c_dist).or_insert((a.clone().max(b)).simplified());
-                    }
-                }
-                {
-                    let mut c_bounds = a_bounds.clone();
-                    s.min_inplace(&mut c_bounds, &b_bounds);
-                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
-                        let mut c_dist = a_dist.clone();
-                        c_dist.min_inplace(&b_dist, &mut buffer);
-                        expressions.entry(c_dist).or_insert((a.clone().min(b)).simplified());
-                    }
-                }
+                add_if_bounded!(InvalidNegative::add_inplace, Dist::add_inplace, DiceExpression::add, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
+                add_if_bounded!(InvalidNegative::mul_inplace, Dist::mul_inplace, DiceExpression::mul, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
+                add_if_bounded!(InvalidNegative::max_inplace, Dist::max_inplace, DiceExpression::max, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
+                add_if_bounded!(InvalidNegative::min_inplace, Dist::min_inplace, DiceExpression::min, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
             }
         }
         // Non-commutative expressions
         for (a_i, (a, a_bounds, a_dist)) in sorted.iter().enumerate() {
             println!("B: {} / {} : {} : {}", a_i + 1, sorted.len(), expressions.len(), a);
             for (b, b_bounds, b_dist) in &sorted {
-                {
-                    let mut c_bounds = a_bounds.clone();
-                    s.sub_inplace(&mut c_bounds, &b_bounds);
-                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
-                        let mut c_dist = a_dist.clone();
-                        c_dist.sub_inplace(&b_dist, &mut buffer);
-                        expressions.entry(c_dist).or_insert((a.clone() - b).simplified());
-                    }
-                }
+                add_if_bounded!(InvalidNegative::sub_inplace, Dist::sub_inplace, DiceExpression::sub, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
             }
         }
         // Special expressions
@@ -134,13 +102,7 @@ pub fn make_all(config: &Config) -> Vec<(Dist<BigRational>, DiceExpression)> {
                 continue;
             }
             for (b, b_bounds, b_dist) in sorted.iter() {
-                let mut c_bounds = a_bounds.clone();
-                s.repeat_inplace(&mut c_bounds, &b_bounds);
-                if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
-                    let mut c_dist = a_dist.clone();
-                    c_dist.repeat(&b_dist, &mut buffer);
-                    expressions.entry(c_dist).or_insert((a.clone().multi_add(b)).simplified());
-                }
+                add_if_bounded!(InvalidNegative::multi_add_inplace, Dist::multi_add_inplace, DiceExpression::multi_add, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
             }
         }
     }

@@ -261,7 +261,7 @@ impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
-    pub(crate) fn repeat(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn multi_add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.is_empty());
         debug_assert!(0 <= self.offset);
 

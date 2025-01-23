@@ -11,7 +11,7 @@ use super::{DiceExpression, Evaluator};
 impl fmt::Display for DiceExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut e = StringEvaluator {};
-        let res = self.evaluate_generic(&mut e);
+        let res = self.traverse(&mut e);
         write!(f, "{}", res.0)
     }
 }
@@ -25,7 +25,7 @@ impl Evaluator<(String, usize)> for StringEvaluator {
         (format!("d{}", d), 8)
     }
 
-    fn repeat_inplace(&mut self, (a, aa): &mut (String, usize), (b, bb): &(String, usize)) {
+    fn multi_add_inplace(&mut self, (a, aa): &mut (String, usize), (b, bb): &(String, usize)) {
         *a = match (*aa >= 3, *bb > 3) {
             (true, true) => format!("{a}x{b}"),
             (true, false) => format!("{a}x({b})"),

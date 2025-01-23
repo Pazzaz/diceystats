@@ -49,6 +49,7 @@ pub struct DiceExpression {
     parts: Vec<Part>,
 }
 
+// Used when traversing the tree of a `DiceExpression`
 trait Evaluator<T> {
     const LOSSY: bool;
     fn to_usize(_x: T) -> usize {
@@ -56,7 +57,7 @@ trait Evaluator<T> {
     }
     fn dice(&mut self, d: usize) -> T;
     fn constant(&mut self, n: isize) -> T;
-    fn repeat_inplace(&mut self, _a: &mut T, _b: &T) {
+    fn multi_add_inplace(&mut self, _a: &mut T, _b: &T) {
         unreachable!("Only used if operations are not LOSSY");
     }
     fn negate_inplace(&mut self, a: &mut T);
@@ -88,7 +89,7 @@ impl Evaluator<(isize, isize)> for InvalidNegative {
         (n, n)
     }
 
-    fn repeat_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
+    fn multi_add_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
         if a.0 < 0 {
             self.found += 1;
             a.0 = 0;
@@ -172,8 +173,8 @@ impl DiceExpression {
         *self.parts.last().unwrap()
     }
 
-    // Traverses the tree with an Evaluator.
-    fn evaluate_generic<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
+    // Traverse the tree with an Evaluator.
+    fn traverse<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
         let mut stack: Vec<EvaluateStage> = vec![EvaluateStage::collect_from(self.top_part())];
         let mut values: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {
@@ -202,7 +203,7 @@ impl DiceExpression {
                     assert!(!Q::LOSSY);
                     let mut aa = values.pop().unwrap();
                     let bb = values.pop().unwrap();
-                    state.repeat_inplace(&mut aa, &bb);
+                    state.multi_add_inplace(&mut aa, &bb);
                     values.push(aa);
                 }
                 EvaluateStage::MultiAddExtra(aa) => {
@@ -343,13 +344,13 @@ impl DiceExpression {
 
     fn could_be_negative(&self) -> usize {
         let mut s = InvalidNegative { found: 0 };
-        self.evaluate_generic(&mut s);
+        self.traverse(&mut s);
         s.found
     }
 
     pub fn bounds(&self) -> (isize, isize) {
         let mut s = InvalidNegative { found: 0 };
-        let (a, b) = self.evaluate_generic(&mut s);
+        let (a, b) = self.traverse(&mut s);
         debug_assert!(a <= b);
         (a, b)
     }
