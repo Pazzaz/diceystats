@@ -43,7 +43,7 @@ mod dices;
 mod dist;
 use std::str::FromStr;
 
-pub use dices::{ConfigEveryTree, every_tree};
+pub use dices::list;
 use dices::parse::DiceParseError;
 pub use dices::DiceExpression;
 pub use dist::Dist;
