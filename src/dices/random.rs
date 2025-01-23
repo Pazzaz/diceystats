@@ -1,4 +1,9 @@
+use std::collections::HashMap;
+
+use num::BigRational;
 use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
+
+use crate::{Dist, dices::InvalidNegative};
 
 use super::{DiceExpression, Evaluator, Part};
 
@@ -25,6 +30,121 @@ impl Distribution<isize> for DiceExpression {
         let mut e = SampleEvaluator { rng };
         self.evaluate_generic(&mut e)
     }
+}
+
+pub struct Config<'a> {
+    pub height: usize,
+    pub dice: &'a [usize],
+    pub constants: &'a [isize],
+    pub bounds: (isize, isize),
+}
+
+pub fn make_all(config: &Config) -> Vec<(Dist<BigRational>, DiceExpression)> {
+    let mut expressions: HashMap<Dist<BigRational>, DiceExpression> = HashMap::default();
+    let Config { height, dice, constants, bounds: (min_value, max_value) } = *config;
+    for &i in dice {
+        // let c = DiceExpression::constant(i as isize);
+        // let c_dist = c.dist::<BigRational>();
+        // expressions.entry(c_dist).or_insert(c);
+        let d = DiceExpression::dice(i);
+        let d_dist = d.dist::<BigRational>();
+        expressions.entry(d_dist).or_insert(d);
+    }
+    for &i in constants {
+        let c = DiceExpression::constant(i);
+        let c_dist = c.dist::<BigRational>();
+        expressions.entry(c_dist).or_insert(c);
+    }
+    for i in 0..height {
+        let mut sorted: Vec<(DiceExpression, (isize, isize), Dist<BigRational>)> = expressions
+            .drain()
+            .map(|x| {
+                let bounds = x.1.bounds();
+                (x.1, bounds, x.0)
+            })
+            .collect();
+        println!("{}", sorted.len());
+        sorted.sort();
+        // Commutative expressions
+        let mut buffer: Vec<BigRational> = Vec::new();
+        let mut s = InvalidNegative::new();
+        for (a_i, (a, a_bounds, a_dist)) in sorted.iter().enumerate() {
+            println!("A: {} / {} : {} : {}", a_i + 1, sorted.len(), expressions.len(), a);
+            for (b_i, (b, b_bounds, b_dist)) in sorted.iter().enumerate() {
+                if b_i > a_i {
+                    break;
+                }
+                {
+                    let mut c_bounds = a_bounds.clone();
+                    s.add_inplace(&mut c_bounds, &b_bounds);
+                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
+                        let mut c_dist = a_dist.clone();
+                        c_dist.add_inplace(&b_dist, &mut buffer);
+                        expressions.entry(c_dist).or_insert((a.clone() + b).simplified());
+                    }
+                }
+                {
+                    let mut c_bounds = a_bounds.clone();
+                    s.mul_inplace(&mut c_bounds, &b_bounds);
+                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
+                        let mut c_dist = a_dist.clone();
+                        c_dist.mul_inplace(&b_dist, &mut buffer);
+                        expressions.entry(c_dist).or_insert((a.clone() * b).simplified());
+                    }
+                }
+                {
+                    let mut c_bounds = a_bounds.clone();
+                    s.max_inplace(&mut c_bounds, &b_bounds);
+                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
+                        let mut c_dist = a_dist.clone();
+                        c_dist.max_inplace(&b_dist, &mut buffer);
+                        expressions.entry(c_dist).or_insert((a.clone().max(b)).simplified());
+                    }
+                }
+                {
+                    let mut c_bounds = a_bounds.clone();
+                    s.min_inplace(&mut c_bounds, &b_bounds);
+                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
+                        let mut c_dist = a_dist.clone();
+                        c_dist.min_inplace(&b_dist, &mut buffer);
+                        expressions.entry(c_dist).or_insert((a.clone().min(b)).simplified());
+                    }
+                }
+            }
+        }
+        // Non-commutative expressions
+        for (a_i, (a, a_bounds, a_dist)) in sorted.iter().enumerate() {
+            println!("B: {} / {} : {} : {}", a_i + 1, sorted.len(), expressions.len(), a);
+            for (b, b_bounds, b_dist) in &sorted {
+                {
+                    let mut c_bounds = a_bounds.clone();
+                    s.sub_inplace(&mut c_bounds, &b_bounds);
+                    if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
+                        let mut c_dist = a_dist.clone();
+                        c_dist.sub_inplace(&b_dist, &mut buffer);
+                        expressions.entry(c_dist).or_insert((a.clone() - b).simplified());
+                    }
+                }
+            }
+        }
+        // Special expressions
+        for (a_i, (a, a_bounds, a_dist)) in sorted.iter().enumerate() {
+            println!("C: {} / {} : {} : {}", a_i + 1, sorted.len(), expressions.len(), a);
+            if a_bounds.1 < 0 {
+                continue;
+            }
+            for (b, b_bounds, b_dist) in sorted.iter() {
+                let mut c_bounds = a_bounds.clone();
+                s.repeat_inplace(&mut c_bounds, &b_bounds);
+                if i < (height - 1) || (min_value <= c_bounds.0 && c_bounds.1 <= max_value) {
+                    let mut c_dist = a_dist.clone();
+                    c_dist.repeat(&b_dist, &mut buffer);
+                    expressions.entry(c_dist).or_insert((a.clone().multi_add(b)).simplified());
+                }
+            }
+        }
+    }
+    expressions.drain().collect()
 }
 
 impl DiceExpression {

@@ -3,10 +3,10 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 mod dist;
 pub mod parse;
 mod print;
-mod random;
+pub mod random;
 mod simplify;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Part {
     Dice(usize),
     Const(isize),
@@ -44,7 +44,7 @@ impl Part {
 /// let x: DiceExpression = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
 /// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)")
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DiceExpression {
     parts: Vec<Part>,
 }
@@ -69,6 +69,12 @@ trait Evaluator<T> {
 
 struct InvalidNegative {
     found: usize,
+}
+
+impl InvalidNegative {
+    fn new() -> Self {
+        InvalidNegative { found: 0 }
+    }
 }
 
 impl Evaluator<(isize, isize)> for InvalidNegative {

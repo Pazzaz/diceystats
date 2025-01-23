@@ -15,10 +15,16 @@ use rand::{
 ///
 /// Probabilities have type `T`, e.g. [`f32`], [`f64`], `BigRational` etc.
 /// All distributions have finite support, represented by a [`Vec<T>`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Dist<T> {
     values: Vec<T>,
     offset: isize,
+}
+
+impl<T> Dist<T> {
+    pub fn map<U, F: Fn(&T) -> U>(&self, f: F) -> Dist<U> {
+        Dist { values: self.values.iter().map(f).collect(), offset: self.offset }
+    }
 }
 
 impl<T: SampleUniform + PartialOrd + Clone + Default> Dist<T>
