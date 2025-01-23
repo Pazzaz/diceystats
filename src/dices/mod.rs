@@ -7,10 +7,28 @@ mod print;
 pub mod random;
 mod simplify;
 
+/// A sequence of interacting dice rolls
+///
+/// You can also display a `DiceExpression` in a simplified form
+/// ```
+/// # use diceystats::DiceExpression;
+/// let x: DiceExpression = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
+/// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)")
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DiceExpression {
+    parts: Vec<Part>,
+}
+
+// Each part of a dice expression is a node in a tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Part {
+    // Leaf nodes
     Dice(usize),
     Const(isize),
+
+    // Nodes with children. The integers are used
+    // as indexes into the `DiceExpression.parts`.
     Negate(usize),
     Add(usize, usize),
     Mul(usize, usize),
@@ -35,19 +53,6 @@ impl Part {
             Part::MultiAdd(a, b) => Part::MultiAdd(a + n, b + n),
         }
     }
-}
-
-/// A sequence of interacting dice rolls
-///
-/// You can also display a `DiceExpression` in a simplified form
-/// ```
-/// # use diceystats::DiceExpression;
-/// let x: DiceExpression = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
-/// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)")
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct DiceExpression {
-    parts: Vec<Part>,
 }
 
 // Used when traversing the tree of a `DiceExpression`
@@ -298,52 +303,50 @@ impl DiceExpression {
         Self { parts: vec![Part::Const(n)] }
     }
 
-    fn negate_inplace(&mut self) {
+    pub fn negate_inplace(&mut self) {
         let orig_len = self.parts.len();
         self.parts.push(Part::Negate(orig_len - 1))
     }
 
-    fn negate(mut self) -> Self {
+    pub fn negate(mut self) -> Self {
         self.negate_inplace();
         self
     }
 
-    fn op_double_inplace(&mut self, other: &DiceExpression) -> (usize, usize) {
-        self.parts.reserve(other.parts.len() + 1);
-
+    // Appends `other` to `self`, creating a broken state. `self.parts` has to have a
+    // `Part` appended to it to make sense. Returns indices of top node of `self` and `other`.
+    fn concat(&mut self, other: &DiceExpression) -> (usize, usize) {
         let orig_len = self.parts.len();
-        let first_element = orig_len - 1;
         self.parts.extend(other.parts.iter().map(|x| x.increased_offset(orig_len)));
-        let second_element = self.parts.len() - 1;
-        (first_element, second_element)
+        (orig_len - 1, self.parts.len() - 1)
     }
 
-    fn min_assign(&mut self, other: &DiceExpression) {
-        let (a, b) = self.op_double_inplace(other);
+    pub fn min_assign(&mut self, other: &DiceExpression) {
+        let (a, b) = self.concat(other);
         self.parts.push(Part::Min(a, b));
     }
 
-    fn min(mut self, other: &DiceExpression) -> Self {
+    pub fn min(mut self, other: &DiceExpression) -> Self {
         self.min_assign(other);
         self
     }
 
-    fn max_assign(&mut self, other: &DiceExpression) {
-        let (a, b) = self.op_double_inplace(other);
+    pub fn max_assign(&mut self, other: &DiceExpression) {
+        let (a, b) = self.concat(other);
         self.parts.push(Part::Max(a, b));
     }
 
-    fn max(mut self, other: &DiceExpression) -> Self {
+    pub fn max(mut self, other: &DiceExpression) -> Self {
         self.max_assign(other);
         self
     }
 
-    fn multi_add_assign(&mut self, other: &DiceExpression) {
-        let (a, b) = self.op_double_inplace(other);
+    pub fn multi_add_assign(&mut self, other: &DiceExpression) {
+        let (a, b) = self.concat(other);
         self.parts.push(Part::MultiAdd(a, b));
     }
 
-    fn multi_add(mut self, other: &DiceExpression) -> Self {
+    pub fn multi_add(mut self, other: &DiceExpression) -> Self {
         self.multi_add_assign(other);
         self
     }
@@ -364,7 +367,7 @@ impl DiceExpression {
 
 impl AddAssign<&Self> for DiceExpression {
     fn add_assign(&mut self, other: &Self) {
-        let (a, b) = self.op_double_inplace(other);
+        let (a, b) = self.concat(other);
         self.parts.push(Part::Add(a, b));
     }
 }
@@ -389,7 +392,7 @@ impl Add<Self> for DiceExpression {
 
 impl MulAssign<&Self> for DiceExpression {
     fn mul_assign(&mut self, other: &Self) {
-        let (a, b) = self.op_double_inplace(other);
+        let (a, b) = self.concat(other);
         self.parts.push(Part::Mul(a, b));
     }
 }
@@ -414,7 +417,7 @@ impl Mul<Self> for DiceExpression {
 
 impl SubAssign<&Self> for DiceExpression {
     fn sub_assign(&mut self, other: &Self) {
-        let (a, b) = self.op_double_inplace(other);
+        let (a, b) = self.concat(other);
         self.parts.push(Part::Sub(a, b));
     }
 }
