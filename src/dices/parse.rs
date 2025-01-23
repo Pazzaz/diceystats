@@ -16,7 +16,7 @@ impl FromStr for DiceExpression {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match list_parser::arithmetic(s) {
             Ok(expr) => {
-                if expr.could_be_negative() != 0 {
+                if expr.could_be_negative() {
                     Err(DiceParseError::NegativeRolls)
                 } else {
                     Ok(expr)

@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::{Add, Mul, Sub}};
 use num::BigRational;
 use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
 
-use crate::{Dist, dices::InvalidNegative};
+use crate::{Dist, dices::Bounds};
 
 use super::{DiceExpression, Evaluator, Part};
 
@@ -32,83 +32,6 @@ impl Distribution<isize> for DiceExpression {
     }
 }
 
-pub struct Config<'a> {
-    pub height: usize,
-    pub dice: &'a [usize],
-    pub constants: &'a [isize],
-    pub bounds: (isize, isize),
-}
-
-pub fn make_all(config: &Config) -> Vec<(Dist<BigRational>, DiceExpression)> {
-    let mut expressions: HashMap<Dist<BigRational>, DiceExpression> = HashMap::default();
-    let Config { height, dice, constants, bounds } = *config;
-    for &i in dice {
-        let d = DiceExpression::dice(i);
-        let d_dist = d.dist::<BigRational>();
-        expressions.entry(d_dist).or_insert(d);
-    }
-    for &i in constants {
-        let c = DiceExpression::constant(i);
-        let c_dist = c.dist::<BigRational>();
-        expressions.entry(c_dist).or_insert(c);
-    }
-    for i in 0..height {
-        let mut sorted: Vec<(DiceExpression, (isize, isize), Dist<BigRational>)> = expressions
-            .drain()
-            .map(|x| {
-                let bounds = x.1.bounds();
-                (x.1, bounds, x.0)
-            })
-            .collect();
-        println!("{}", sorted.len());
-        sorted.sort();
-        let mut buffer: Vec<BigRational> = Vec::new();
-        let mut s = InvalidNegative::new();
-        macro_rules! add_if_bounded {
-            ($f1:expr, $f2:expr, $f3:expr, $a_bounds:expr, $b_bounds:expr, $a_dist:expr, $b_dist:expr, $a:expr, $b:expr) => {
-                let mut c_bounds = $a_bounds;
-                $f1(&mut s, &mut c_bounds, $b_bounds);
-                if i < (height - 1) || (bounds.0 <= c_bounds.0 && c_bounds.1 <= bounds.1) {
-                    let mut c_dist = $a_dist.clone();
-                    $f2(&mut c_dist, $b_dist, &mut buffer);
-                    expressions.entry(c_dist).or_insert_with(|| $f3($a.clone(), $b).simplified());
-                }
-            };
-        }
-        // Commutative expressions
-        for (a_i, (a, a_bounds, a_dist)) in sorted.iter().enumerate() {
-            println!("A: {} / {} : {} : {}", a_i + 1, sorted.len(), expressions.len(), a);
-            for (b_i, (b, b_bounds, b_dist)) in sorted.iter().enumerate() {
-                if b_i > a_i {
-                    break;
-                }
-                add_if_bounded!(InvalidNegative::add_inplace, Dist::add_inplace, DiceExpression::add, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
-                add_if_bounded!(InvalidNegative::mul_inplace, Dist::mul_inplace, DiceExpression::mul, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
-                add_if_bounded!(InvalidNegative::max_inplace, Dist::max_inplace, DiceExpression::max, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
-                add_if_bounded!(InvalidNegative::min_inplace, Dist::min_inplace, DiceExpression::min, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
-            }
-        }
-        // Non-commutative expressions
-        for (a_i, (a, a_bounds, a_dist)) in sorted.iter().enumerate() {
-            println!("B: {} / {} : {} : {}", a_i + 1, sorted.len(), expressions.len(), a);
-            for (b, b_bounds, b_dist) in &sorted {
-                add_if_bounded!(InvalidNegative::sub_inplace, Dist::sub_inplace, DiceExpression::sub, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
-            }
-        }
-        // Special expressions
-        for (a_i, (a, a_bounds, a_dist)) in sorted.iter().enumerate() {
-            println!("C: {} / {} : {} : {}", a_i + 1, sorted.len(), expressions.len(), a);
-            if a_bounds.1 < 0 {
-                continue;
-            }
-            for (b, b_bounds, b_dist) in sorted.iter() {
-                add_if_bounded!(InvalidNegative::multi_add_inplace, Dist::multi_add_inplace, DiceExpression::multi_add, *a_bounds, b_bounds, a_dist, &b_dist, a, b);
-            }
-        }
-    }
-    expressions.drain().collect()
-}
-
 impl DiceExpression {
     /// Create a random expression, modeleted as a tree with some `height` and maximum die / constant `value_size`.
     pub fn make_random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
@@ -131,7 +54,7 @@ impl DiceExpression {
                 }
             }
             let exp = DiceExpression { parts };
-            if exp.could_be_negative() == 0 {
+            if !exp.could_be_negative() {
                 return exp;
             }
         }

@@ -43,11 +43,9 @@ mod dices;
 mod dist;
 use std::str::FromStr;
 
+pub use dices::{ConfigEveryTree, every_tree};
 use dices::parse::DiceParseError;
-pub use dices::{
-    DiceExpression,
-    random::{Config, make_all},
-};
+pub use dices::DiceExpression;
 pub use dist::Dist;
 use rand::{Rng, prelude::Distribution};
 
