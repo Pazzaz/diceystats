@@ -27,7 +27,8 @@ impl Distribution<isize> for DiceFormula {
 }
 
 impl DiceFormula {
-    /// Create a random expression, modeleted as a tree with some `height` and maximum die / constant `value_size`.
+    /// Create a random expression, modeleted as a tree with some `height` and
+    /// maximum die / constant `value_size`.
     pub fn make_random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
         let dist = Uniform::new_inclusive(1, value_size);
         let bottom = 2usize.pow(height as u32);

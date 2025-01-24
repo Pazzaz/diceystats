@@ -13,7 +13,8 @@ use std::{
 
 /// Parameters for [`every_tree`].
 pub struct ConfigEveryTree<'a> {
-    /// Height of the resulting tree of the generated [`DiceFormula`]. Probably 2 at max.
+    /// Height of the resulting tree of the generated [`DiceFormula`]. Probably
+    /// 2 at max.
     pub height: usize,
     /// Set of dice that the generated trees can choose from.
     pub dice: &'a [usize],
@@ -37,7 +38,8 @@ impl<'a> Default for ConfigEveryTree<'a> {
     }
 }
 
-/// Generate every [`DiceFormula`] with parameters chosen using [`ConfigEveryTree`].
+/// Generate every [`DiceFormula`] with parameters chosen using
+/// [`ConfigEveryTree`].
 pub fn every_tree(
     &ConfigEveryTree { height, dice, constants, bounds, print_progress }: &ConfigEveryTree,
 ) -> Vec<(Dist<BigRational>, DiceFormula)> {

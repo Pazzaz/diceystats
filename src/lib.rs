@@ -1,12 +1,10 @@
-//! This crate is used to sample from and analyze dice formulas which use
-//! [dice notation](https://en.wikipedia.org/wiki/Dice_notation), in
-//! the style of Dungeons and Dragons.
+//! This crate is used to sample from and analyze dice formulas which use [dice
+//! notation](https://en.wikipedia.org/wiki/Dice_notation), in the style of
+//! Dungeons and Dragons. It can parse formulas as strings, sample from
+//! formulas, analayze the distribution of formulas, simplify formulas, randomly
+//! generate formulas, exhaustavely generate classes of formulas, etc.
 //!
 //! The main user facing types are [DiceFormula] and [Dist].
-//!
-//! In a more technical sense, this library is a compiler toolkit for dice formulas.
-//! It can parse formulas as strings, sample from formulas, analayze the distribution of formulas,
-//! simplify formulas, randomly generate formulas, exhaustavely generate classes of formulas, etc.
 //!
 //! # Usage
 //! ```
@@ -34,7 +32,9 @@
 //! assert_eq!(dist.mean(), "77/4".parse().unwrap());
 //! ```
 //!
-//! The library also supports "negative dice", but the library will fail if there's a chance of rolling a negative *amount* of dice
+//! The library also supports "negative dice", but the library will fail if
+//! there's a chance of rolling a negative *amount* of dice
+//!
 //! ```
 //! use diceystats::{DiceFormula, Dist, roll};
 //! use rand::thread_rng;
@@ -44,9 +44,9 @@
 //!
 //! # Performance
 //! An attempt has been made to make the program reasonably fast, though
-//! the use of generics limits the possibilities of low level optimisation.
-//! The probability distribtions used are also not very optimizaed for sparse
-//! distributions. An expression such as `100000 * d2´, despite only having two
+//! the use of generics makes low level optimisations less feasable.
+//! The probability distributions used are also not very optimized for sparse
+//! distributions. An expression such as `100000 * d2`, despite only having two
 //! possible outcomes, would store many zero probability outcomes.
 
 #![feature(test)]
@@ -54,18 +54,18 @@ mod dices;
 mod dist;
 use std::str::FromStr;
 
-use dices::parse::DiceParseError;
-pub use dices::{DiceFormula, list};
+pub use dices::{DiceFormula, list, parse::DiceParseError};
 pub use dist::Dist;
 use rand::{Rng, prelude::Distribution};
 
-/// Roll a set of dice.
+/// Roll dice and evaluate a dice formula.
 ///
 /// Returns `None` if the expression is invalid.
+///
 /// ```
 /// use rand::thread_rng;
 ///
-/// let x = diceystats::roll("d10 + d5", &mut thread_rng());
+/// let x: isize = diceystats::roll("d10 + d5", &mut thread_rng()).unwrap();
 /// ```
 pub fn roll<R: Rng + ?Sized>(s: &str, rng: &mut R) -> Result<isize, DiceParseError> {
     DiceFormula::from_str(s).map(|x| x.sample(rng))

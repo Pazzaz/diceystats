@@ -10,6 +10,7 @@ mod simplify;
 /// A sequence of interacting dice rolls
 ///
 /// You can also display a `DiceFormula` in a simplified form
+///
 /// ```
 /// # use diceystats::DiceFormula;
 /// let x: DiceFormula = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
@@ -313,8 +314,9 @@ impl DiceFormula {
         self
     }
 
-    // Appends `other` to `self`, creating a broken state. `self.parts` has to have a
-    // `Part` appended to it to make sense. Returns indices of top node of `self` and `other`.
+    // Appends `other` to `self`, creating a broken state. `self.parts` has to have
+    // a `Part` appended to it to make sense. Returns indices of top node of
+    // `self` and `other`.
     fn concat(&mut self, other: &DiceFormula) -> (usize, usize) {
         let orig_len = self.parts.len();
         self.parts.extend(other.parts.iter().map(|x| x.increased_offset(orig_len)));

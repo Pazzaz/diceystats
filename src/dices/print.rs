@@ -3,6 +3,7 @@ use std::fmt;
 use super::{DiceFormula, Evaluator};
 
 /// Displays an expression slightly normalized, with parenthesis and spaces.
+///
 /// ```
 /// use diceystats::DiceFormula;
 /// let x: DiceFormula = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
@@ -85,8 +86,9 @@ mod tests {
     use super::*;
     extern crate test;
 
-    // Given the name of a test, a formatted expression and multiple input expressions, create a
-    // test which checks that the input expressions are equal to the formatted expression
+    // Given the name of a test, a formatted expression and multiple input
+    // expressions, create a test which checks that the input expressions are
+    // equal to the formatted expression
     macro_rules! test {
         ($f:ident, $right:expr, $($wrong:expr),+) => {
             #[test]
@@ -111,8 +113,8 @@ mod tests {
     fn print_random() {
         let mut rng = ChaCha20Rng::seed_from_u64(123);
         for _ in 0..200 {
-            // Generate a random expression and check if its distribution is the same after being
-            // formatted and parsed into a new expression.
+            // Generate a random expression and check if its distribution is the same after
+            // being formatted and parsed into a new expression.
             let a = DiceFormula::make_random(&mut rng, 2, 10);
             let a_formatted = DiceFormula::from_str(&a.to_string()).unwrap();
             let dist = a.dist::<f64>();

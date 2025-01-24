@@ -41,7 +41,9 @@ impl<T: num::Zero + PartialOrd + Debug + Clone> Dist<T>
 where
     for<'a> T: AddAssign<&'a T> + SubAssign<&'a T>,
 {
-    /// Distance between two distributions, measured by total elementwise difference of probabilities
+    /// Distance between two distributions, measured by total elementwise
+    /// difference of probabilities.
+    ///
     /// ```
     /// use diceystats::{DiceFormula, Dist};
     /// use num::BigRational;
@@ -82,7 +84,9 @@ where
         d
     }
 
-    /// Distance between two distributions, measured by maximum elementwise difference of probabilities
+    /// Distance between two distributions, measured by maximum elementwise
+    /// difference of probabilities
+    ///
     /// ```
     /// use diceystats::{DiceFormula, Dist};
     /// use num::BigRational;
@@ -144,14 +148,17 @@ impl<T> Dist<T> {
         self.offset + (self.values.len() as isize) - 1
     }
 
-    /// Iterate through the distributions support, with each outcomes probability.
+    /// Iterate through the distributions support, with each outcomes
+    /// probability.
     pub fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
     }
 
-    /// The chance that `n` will be sampled from the distribution. Returns `None` if ouside the distributions support.
+    /// The chance that `n` will be sampled from the distribution. Returns
+    /// `None` if ouside the distributions support.
+    ///
     /// ```
-    /// use diceystats::{Dist, DiceFormula};
+    /// use diceystats::{DiceFormula, Dist};
     ///
     /// let expr: DiceFormula = "d10".parse().unwrap();
     /// let dist: Dist<f64> = expr.dist();
@@ -297,9 +304,10 @@ where
 
         //  starting_case  min_value                         max_value
         //  - 0 +
-        // [ ]             self.max_value * other.min_value  self.min_value * other.max_value
-        //   [ ]           self.max_value * other.min_value  self.max_value * other.max_value
-        //     [ ]         self.min_value * other.min_value  self.max_value * other.max_value
+        // [ ]             self.max_value * other.min_value  self.min_value *
+        // other.max_value   [ ]           self.max_value * other.min_value
+        // self.max_value * other.max_value     [ ]         self.min_value *
+        // other.min_value  self.max_value * other.max_value
 
         let min_value = (self.max_value() * other.min_value())
             .min(self.max_value() * other.min_value())
@@ -321,7 +329,8 @@ where
         let max_value_tmp = 0.max(max_value).max(other.max_value());
         let tmp_len = (max_value_tmp - min_value_tmp + 1) as usize;
 
-        // We have a second buffer which tracks the chance of getting X with "current_i" iterations
+        // We have a second buffer which tracks the chance of getting X with "current_i"
+        // iterations
         let mut source = vec![T::zero(); tmp_len];
         let mut dest = vec![T::zero(); tmp_len];
 

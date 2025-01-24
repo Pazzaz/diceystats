@@ -7,11 +7,14 @@ use crate::Dist;
 use super::{DiceFormula, Evaluator};
 
 impl DiceFormula {
-    /// Calculate the probability distribution of the outcomes of the expression.
+    /// Calculate the probability distribution of the outcomes of the
+    /// expression.
     ///
-    /// The function is generic over the number type used to represent probabilities.
+    /// The function is generic over the number type used to represent
+    /// probabilities.
     ///
     /// # Example
+    ///
     /// ```
     /// use diceystats::{DiceFormula, Dist};
     /// use num::BigRational;
