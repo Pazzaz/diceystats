@@ -37,7 +37,7 @@ where
     }
 }
 
-impl<T: num::Zero + PartialOrd + Debug + Clone> Dist<T>
+impl<T: num::Zero + PartialOrd + Clone> Dist<T>
 where
     for<'a> T: AddAssign<&'a T> + SubAssign<&'a T>,
 {
@@ -239,7 +239,7 @@ where
     }
 }
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
+impl<T: Num + Clone + AddAssign> Dist<T>
 where
     for<'a> T: MulAssign<&'a T>,
 {
@@ -294,7 +294,7 @@ where
     }
 }
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug> Dist<T>
+impl<T: Num + Clone + AddAssign> Dist<T>
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {

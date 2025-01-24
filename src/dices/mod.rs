@@ -331,13 +331,7 @@ impl DiceFormula {
     /// ```
     pub fn dist<T>(&self) -> Dist<T>
     where
-        for<'a> T: MulAssign<&'a T>
-            + AddAssign<&'a T>
-            + Num
-            + Clone
-            + AddAssign
-            + std::fmt::Debug
-            + FromPrimitive,
+        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + FromPrimitive,
     {
         let mut e = DistEvaluator { buffer: Vec::new() };
         self.traverse(&mut e)

@@ -10,8 +10,7 @@ pub(crate) struct DistEvaluator<T> {
     pub(crate) buffer: Vec<T>,
 }
 
-impl<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive> Evaluator<Dist<T>>
-    for DistEvaluator<T>
+impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<Dist<T>> for DistEvaluator<T>
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
