@@ -187,9 +187,9 @@ impl<T: Num + Clone> Dist<T> {
     }
 }
 
-impl<T: Num + FromPrimitive + AddAssign> Dist<T>
+impl<T: Num + FromPrimitive + AddAssign + PartialOrd> Dist<T>
 where
-    for<'a> T: MulAssign<&'a T>,
+    for<'a> T: MulAssign<&'a T> + SubAssign<&'a T>,
 {
     pub fn mean(&self) -> T {
         let mut out = T::zero();
@@ -199,6 +199,40 @@ where
             out += thing;
         }
         T::from_isize(self.offset).unwrap() + out
+    }
+
+    pub fn variance(&self) -> T {
+        let mean = self.mean();
+        let mut total = T::zero();
+        for (i, v) in self.iter_enumerate() {
+            let mut v_i = T::from_isize(i).unwrap();
+            v_i -= &mean;
+            v_i *= v;
+            total +=  v_i;
+        }
+        total
+    }
+
+    pub fn modes(&self) -> Vec<isize> {
+        let mut out = Vec::new();
+        let mut best: Option<&T> = None;
+        for (i, v) in self.iter_enumerate() {
+            match best {
+                Some(x) if x < v => {
+                    best = Some(v);
+                    out.clear();
+                    out.push(i)
+                }
+                Some(x) if x == v => {
+                    out.push(i)
+                }
+                Some(_) => {}
+                None => {
+                    out.push(i)
+                },
+            }
+        }
+        out
     }
 }
 
