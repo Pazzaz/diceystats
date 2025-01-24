@@ -1,14 +1,14 @@
 use std::fmt;
 
-use super::{DiceExpression, Evaluator};
+use super::{DiceFormula, Evaluator};
 
 /// Displays an expression slightly normalized, with parenthesis and spaces.
 /// ```
-/// use diceystats::DiceExpression;
-/// let x: DiceExpression = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
+/// use diceystats::DiceFormula;
+/// let x: DiceFormula = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
 /// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)");
 /// ```
-impl fmt::Display for DiceExpression {
+impl fmt::Display for DiceFormula {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut e = StringEvaluator {};
         let res = self.traverse(&mut e);
@@ -92,7 +92,7 @@ mod tests {
             #[test]
             fn $f() {
                 $(
-                    let a = DiceExpression::from_str($wrong).unwrap();
+                    let a = DiceFormula::from_str($wrong).unwrap();
                     assert_eq!($right, a.to_string());
                 )+
             }
@@ -113,8 +113,8 @@ mod tests {
         for _ in 0..200 {
             // Generate a random expression and check if its distribution is the same after being
             // formatted and parsed into a new expression.
-            let a = DiceExpression::make_random(&mut rng, 2, 10);
-            let a_formatted = DiceExpression::from_str(&a.to_string()).unwrap();
+            let a = DiceFormula::make_random(&mut rng, 2, 10);
+            let a_formatted = DiceFormula::from_str(&a.to_string()).unwrap();
             let dist = a.dist::<f64>();
             let dist_formatted = a_formatted.dist::<f64>();
             assert!(dist.distance(&dist_formatted) <= 0.01, "{a} = {a_formatted}");

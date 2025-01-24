@@ -9,14 +9,14 @@ mod simplify;
 
 /// A sequence of interacting dice rolls
 ///
-/// You can also display a `DiceExpression` in a simplified form
+/// You can also display a `DiceFormula` in a simplified form
 /// ```
-/// # use diceystats::DiceExpression;
-/// let x: DiceExpression = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
+/// # use diceystats::DiceFormula;
+/// let x: DiceFormula = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
 /// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)")
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct DiceExpression {
+pub struct DiceFormula {
     parts: Vec<Part>,
 }
 
@@ -28,7 +28,7 @@ enum Part {
     Const(isize),
 
     // Nodes with children. The integers are used
-    // as indexes into the `DiceExpression.parts`.
+    // as indexes into the `DiceFormula.parts`.
     Negate(usize),
     Add(usize, usize),
     Mul(usize, usize),
@@ -55,7 +55,7 @@ impl Part {
     }
 }
 
-// Used when traversing the tree of a `DiceExpression`
+// Used when traversing the tree of a `DiceFormula`
 trait Evaluator<T> {
     // Used for `multi_add`: some evaluators have to reevaluate the right side
     // expression multiple times (LOSSY = true) while some don't (LOSSY = false)
@@ -76,7 +76,7 @@ trait Evaluator<T> {
     fn min_inplace(&mut self, a: &mut T, b: &T);
 }
 
-// Finds the minimum and maximum value of a `DiceExpression`.
+// Finds the minimum and maximum value of a `DiceFormula`.
 struct Bounds {
     multi_add_negative: usize,
 }
@@ -139,7 +139,7 @@ impl Evaluator<(isize, isize)> for Bounds {
     }
 }
 
-// A state machine used in `DiceExpression::traverse`
+// A state machine used in `DiceFormula::traverse`
 enum EvaluateStage {
     Dice(usize),
     Const(isize),
@@ -178,7 +178,7 @@ impl EvaluateStage {
     }
 }
 
-impl DiceExpression {
+impl DiceFormula {
     // The last item in `self.parts` should always be the top node in the tree
     fn top_part(&self) -> Part {
         *self.parts.last().unwrap()
@@ -315,38 +315,38 @@ impl DiceExpression {
 
     // Appends `other` to `self`, creating a broken state. `self.parts` has to have a
     // `Part` appended to it to make sense. Returns indices of top node of `self` and `other`.
-    fn concat(&mut self, other: &DiceExpression) -> (usize, usize) {
+    fn concat(&mut self, other: &DiceFormula) -> (usize, usize) {
         let orig_len = self.parts.len();
         self.parts.extend(other.parts.iter().map(|x| x.increased_offset(orig_len)));
         (orig_len - 1, self.parts.len() - 1)
     }
 
-    pub fn min_assign(&mut self, other: &DiceExpression) {
+    pub fn min_assign(&mut self, other: &DiceFormula) {
         let (a, b) = self.concat(other);
         self.parts.push(Part::Min(a, b));
     }
 
-    pub fn min(mut self, other: &DiceExpression) -> Self {
+    pub fn min(mut self, other: &DiceFormula) -> Self {
         self.min_assign(other);
         self
     }
 
-    pub fn max_assign(&mut self, other: &DiceExpression) {
+    pub fn max_assign(&mut self, other: &DiceFormula) {
         let (a, b) = self.concat(other);
         self.parts.push(Part::Max(a, b));
     }
 
-    pub fn max(mut self, other: &DiceExpression) -> Self {
+    pub fn max(mut self, other: &DiceFormula) -> Self {
         self.max_assign(other);
         self
     }
 
-    pub fn multi_add_assign(&mut self, other: &DiceExpression) {
+    pub fn multi_add_assign(&mut self, other: &DiceFormula) {
         let (a, b) = self.concat(other);
         self.parts.push(Part::MultiAdd(a, b));
     }
 
-    pub fn multi_add(mut self, other: &DiceExpression) -> Self {
+    pub fn multi_add(mut self, other: &DiceFormula) -> Self {
         self.multi_add_assign(other);
         self
     }
@@ -365,14 +365,14 @@ impl DiceExpression {
     }
 }
 
-impl AddAssign<&Self> for DiceExpression {
+impl AddAssign<&Self> for DiceFormula {
     fn add_assign(&mut self, other: &Self) {
         let (a, b) = self.concat(other);
         self.parts.push(Part::Add(a, b));
     }
 }
 
-impl Add<&Self> for DiceExpression {
+impl Add<&Self> for DiceFormula {
     type Output = Self;
 
     fn add(mut self, other: &Self) -> Self {
@@ -381,7 +381,7 @@ impl Add<&Self> for DiceExpression {
     }
 }
 
-impl Add<Self> for DiceExpression {
+impl Add<Self> for DiceFormula {
     type Output = Self;
 
     fn add(mut self, other: Self) -> Self {
@@ -390,14 +390,14 @@ impl Add<Self> for DiceExpression {
     }
 }
 
-impl MulAssign<&Self> for DiceExpression {
+impl MulAssign<&Self> for DiceFormula {
     fn mul_assign(&mut self, other: &Self) {
         let (a, b) = self.concat(other);
         self.parts.push(Part::Mul(a, b));
     }
 }
 
-impl Mul<&Self> for DiceExpression {
+impl Mul<&Self> for DiceFormula {
     type Output = Self;
 
     fn mul(mut self, other: &Self) -> Self {
@@ -406,7 +406,7 @@ impl Mul<&Self> for DiceExpression {
     }
 }
 
-impl Mul<Self> for DiceExpression {
+impl Mul<Self> for DiceFormula {
     type Output = Self;
 
     fn mul(mut self, other: Self) -> Self {
@@ -415,14 +415,14 @@ impl Mul<Self> for DiceExpression {
     }
 }
 
-impl SubAssign<&Self> for DiceExpression {
+impl SubAssign<&Self> for DiceFormula {
     fn sub_assign(&mut self, other: &Self) {
         let (a, b) = self.concat(other);
         self.parts.push(Part::Sub(a, b));
     }
 }
 
-impl Sub<&Self> for DiceExpression {
+impl Sub<&Self> for DiceFormula {
     type Output = Self;
 
     fn sub(mut self, other: &Self) -> Self {
@@ -431,7 +431,7 @@ impl Sub<&Self> for DiceExpression {
     }
 }
 
-impl Sub<Self> for DiceExpression {
+impl Sub<Self> for DiceFormula {
     type Output = Self;
 
     fn sub(mut self, other: Self) -> Self {

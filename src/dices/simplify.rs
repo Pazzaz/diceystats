@@ -1,23 +1,23 @@
 use std::ops::{AddAssign, Mul, MulAssign, SubAssign};
 
-use super::{DiceExpression, Evaluator, Part};
+use super::{DiceFormula, Evaluator, Part};
 
-// Traverses a `DiceExpression` and creates a simplified `DiceExpression`
+// Traverses a `DiceFormula` and creates a simplified `DiceFormula`
 // using local/peephole optimizations.
 struct Simplifier {}
 
-impl Evaluator<DiceExpression> for Simplifier {
+impl Evaluator<DiceFormula> for Simplifier {
     const LOSSY: bool = false;
 
-    fn dice(&mut self, d: usize) -> DiceExpression {
-        if d == 1 { DiceExpression::constant(1) } else { DiceExpression::dice(d) }
+    fn dice(&mut self, d: usize) -> DiceFormula {
+        if d == 1 { DiceFormula::constant(1) } else { DiceFormula::dice(d) }
     }
 
-    fn constant(&mut self, n: isize) -> DiceExpression {
-        DiceExpression::constant(n)
+    fn constant(&mut self, n: isize) -> DiceFormula {
+        DiceFormula::constant(n)
     }
 
-    fn negate_inplace(&mut self, a: &mut DiceExpression) {
+    fn negate_inplace(&mut self, a: &mut DiceFormula) {
         match a.top_part() {
             // Double negate => remove negate
             Part::Const(n) => {
@@ -40,17 +40,17 @@ impl Evaluator<DiceExpression> for Simplifier {
         }
     }
 
-    fn multi_add_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+    fn multi_add_inplace(&mut self, a: &mut DiceFormula, b: &DiceFormula) {
         match (a.top_part(), b.top_part()) {
             (Part::Const(aa), Part::Const(bb)) => {
-                *a = DiceExpression::constant(aa * bb);
+                *a = DiceFormula::constant(aa * bb);
             }
             (Part::Const(1), _) => {
                 *a = b.clone();
             }
             (_, Part::Const(1)) => {}
             (_, Part::Const(_)) => {
-                *a = DiceExpression::mul(a.clone(), b);
+                *a = DiceFormula::mul(a.clone(), b);
             }
             _ => {
                 a.multi_add_assign(b);
@@ -58,10 +58,10 @@ impl Evaluator<DiceExpression> for Simplifier {
         }
     }
 
-    fn add_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+    fn add_inplace(&mut self, a: &mut DiceFormula, b: &DiceFormula) {
         match (a.top_part(), b.top_part()) {
             (Part::Const(aa), Part::Const(bb)) => {
-                *a = DiceExpression::constant(aa + bb);
+                *a = DiceFormula::constant(aa + bb);
             }
             _ => {
                 a.add_assign(b);
@@ -69,10 +69,10 @@ impl Evaluator<DiceExpression> for Simplifier {
         }
     }
 
-    fn mul_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+    fn mul_inplace(&mut self, a: &mut DiceFormula, b: &DiceFormula) {
         match (a.top_part(), b.top_part()) {
             (Part::Const(aa), Part::Const(bb)) => {
-                *a = DiceExpression::constant(aa * bb);
+                *a = DiceFormula::constant(aa * bb);
             }
             (Part::Const(1), _) => {
                 *a = b.clone();
@@ -84,10 +84,10 @@ impl Evaluator<DiceExpression> for Simplifier {
         }
     }
 
-    fn sub_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+    fn sub_inplace(&mut self, a: &mut DiceFormula, b: &DiceFormula) {
         match (a.top_part(), b.top_part()) {
             (Part::Const(aa), Part::Const(bb)) => {
-                *a = DiceExpression::constant(aa - bb);
+                *a = DiceFormula::constant(aa - bb);
             }
             _ => {
                 a.sub_assign(b);
@@ -95,7 +95,7 @@ impl Evaluator<DiceExpression> for Simplifier {
         }
     }
 
-    fn max_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+    fn max_inplace(&mut self, a: &mut DiceFormula, b: &DiceFormula) {
         let a_bounds = a.bounds();
         let b_bounds = b.bounds();
         if a_bounds.1 <= b_bounds.0 {
@@ -105,7 +105,7 @@ impl Evaluator<DiceExpression> for Simplifier {
         }
     }
 
-    fn min_inplace(&mut self, a: &mut DiceExpression, b: &DiceExpression) {
+    fn min_inplace(&mut self, a: &mut DiceFormula, b: &DiceFormula) {
         let a_bounds = a.bounds();
         let b_bounds = b.bounds();
         if b_bounds.1 <= a_bounds.0 {
@@ -116,16 +116,16 @@ impl Evaluator<DiceExpression> for Simplifier {
     }
 }
 
-impl DiceExpression {
+impl DiceFormula {
     /// Simplify the expression using simple rewriting rules
     /// ```
-    /// use diceystats::DiceExpression;
+    /// use diceystats::DiceFormula;
     ///
-    /// let complicated: DiceExpression = "min((d4+d5)*5, d5x2)".parse().unwrap();
+    /// let complicated: DiceFormula = "min((d4+d5)*5, d5x2)".parse().unwrap();
     /// let simple = complicated.simplified();
     /// assert_eq!(simple.to_string(), "d5 * 2");
     /// ```
-    pub fn simplified(&self) -> DiceExpression {
+    pub fn simplified(&self) -> DiceFormula {
         let mut s = Simplifier {};
         self.traverse(&mut s)
     }
@@ -144,7 +144,7 @@ mod tests {
         for _ in 0..200 {
             // Generate a random expression and check if its
             // distribution is the same after being simplified.
-            let a = DiceExpression::make_random(&mut rng, 2, 10);
+            let a = DiceFormula::make_random(&mut rng, 2, 10);
             let a_simple = a.simplified();
             let dist = a.dist::<f64>();
             let simple_dist = a_simple.dist::<f64>();

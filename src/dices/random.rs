@@ -5,7 +5,7 @@ use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom}
 
 use crate::{Dist, dices::Bounds};
 
-use super::{DiceExpression, Evaluator, Part};
+use super::{DiceFormula, Evaluator, Part};
 
 fn random_none<R: Rng + ?Sized>(rng: &mut R, n: usize) -> Part {
     let choices = [Part::Const(n as isize), Part::Dice(n)];
@@ -24,7 +24,7 @@ fn random_dual<R: Rng + ?Sized>(rng: &mut R, a: usize, b: usize) -> Part {
     *choices.choose(rng).unwrap()
 }
 
-impl Distribution<isize> for DiceExpression {
+impl Distribution<isize> for DiceFormula {
     /// Evaluate the expression into a single number, rolling dice using `rng`.
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
         let mut e = SampleEvaluator { rng };
@@ -32,7 +32,7 @@ impl Distribution<isize> for DiceExpression {
     }
 }
 
-impl DiceExpression {
+impl DiceFormula {
     /// Create a random expression, modeleted as a tree with some `height` and maximum die / constant `value_size`.
     pub fn make_random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
         let dist = Uniform::new_inclusive(1, value_size);
@@ -53,7 +53,7 @@ impl DiceExpression {
                     }
                 }
             }
-            let exp = DiceExpression { parts };
+            let exp = DiceFormula { parts };
             if !exp.could_be_negative() {
                 return exp;
             }

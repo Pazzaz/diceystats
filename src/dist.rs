@@ -43,11 +43,11 @@ where
 {
     /// Distance between two distributions, measured by total elementwise difference of probabilities
     /// ```
-    /// use diceystats::{DiceExpression, Dist};
+    /// use diceystats::{DiceFormula, Dist};
     /// use num::BigRational;
     ///
-    /// let expr1 = "d4xd3".parse::<DiceExpression>().unwrap();
-    /// let expr2 = "d4+d6".parse::<DiceExpression>().unwrap();
+    /// let expr1 = "d4xd3".parse::<DiceFormula>().unwrap();
+    /// let expr2 = "d4+d6".parse::<DiceFormula>().unwrap();
     /// let d: BigRational = expr1.dist().distance(&expr2.dist());
     /// assert_eq!(d, "25/54".parse().unwrap())
     /// ```
@@ -84,11 +84,11 @@ where
 
     /// Distance between two distributions, measured by maximum elementwise difference of probabilities
     /// ```
-    /// use diceystats::{DiceExpression, Dist};
+    /// use diceystats::{DiceFormula, Dist};
     /// use num::BigRational;
     ///
-    /// let expr1 = "d4xd3".parse::<DiceExpression>().unwrap();
-    /// let expr2 = "d4+d6".parse::<DiceExpression>().unwrap();
+    /// let expr1 = "d4xd3".parse::<DiceFormula>().unwrap();
+    /// let expr2 = "d4+d6".parse::<DiceFormula>().unwrap();
     /// let d: BigRational = expr1.dist().distance_max(&expr2.dist());
     /// assert_eq!(d, "1/12".parse().unwrap())
     /// ```
@@ -151,9 +151,9 @@ impl<T> Dist<T> {
 
     /// The chance that `n` will be sampled from the distribution. Returns `None` if ouside the distributions support.
     /// ```
-    /// use diceystats::{Dist, DiceExpression};
+    /// use diceystats::{Dist, DiceFormula};
     ///
-    /// let expr: DiceExpression = "d10".parse().unwrap();
+    /// let expr: DiceFormula = "d10".parse().unwrap();
     /// let dist: Dist<f64> = expr.dist();
     /// let p = dist.chance(3).unwrap_or(&0.0);
     /// assert_eq!(1.0 / 10.0, *p);

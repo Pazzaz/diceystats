@@ -1,12 +1,16 @@
-//! This crate is used to simulate dice rolls using [dice notation](https://en.wikipedia.org/wiki/Dice_notation), in the style of Dungeons and Dragons.
+//! This crate is used to sample from and analyze dice formulas which use
+//! [dice notation](https://en.wikipedia.org/wiki/Dice_notation), in 
+//! the style of Dungeons and Dragons.
 //!
-//! The main types are
-//! - [DiceExpression], a sequence of interacting dice rolls
-//! - [Dist], a discrete distribution of outcomes
+//! The main user facing types are [DiceFormula] and [Dist].
+//!
+//! In a more technical sense, this library is a compiler toolkit for dice formulas.
+//! It can parse formulas as strings, sample from formulas, analayze the distribution of formulas,
+//! simplify formulas, randomly generate formulas, exhaustavely generate classes of formulas, etc.
 //!
 //! # Usage
 //! ```
-//! use diceystats::{DiceExpression, Dist, roll};
+//! use diceystats::{DiceFormula, Dist, roll};
 //! use num::BigRational;
 //! use rand::thread_rng;
 //!
@@ -18,8 +22,8 @@
 //! let result = roll(example, &mut thread_rng()).unwrap();
 //! assert!(2 <= result && result <= 54);
 //!
-//! // Or to do more advanced things we can parse it into a `DiceExpression`
-//! let d4_d5_d6: DiceExpression = example.parse().unwrap();
+//! // Or to do more advanced things we can parse it into a `DiceFormula`
+//! let d4_d5_d6: DiceFormula = example.parse().unwrap();
 //!
 //! // Then we can calculate its probability distribution
 //! let dist: Dist<f64> = d4_d5_d6.dist();
@@ -32,11 +36,18 @@
 //!
 //! The library also supports "negative dice", but the library will fail if there's a chance of rolling a negative *amount* of dice
 //! ```
-//! use diceystats::{DiceExpression, Dist, roll};
+//! use diceystats::{DiceFormula, Dist, roll};
 //! use rand::thread_rng;
 //!
 //! roll("(d4 - d4)xd20", &mut thread_rng()).is_err();
 //! ```
+//!
+//! # Performance
+//! An attempt has been made to make the program reasonably fast, though
+//! the use of generics limits the possibilities of low level optimisation.
+//! The probability distribtions used are also not very optimizaed for sparse
+//! distributions. An expression such as `100000 * d2´, despite only having two
+//! possible outcomes, would store many zero probability outcomes.
 
 #![feature(test)]
 mod dices;
@@ -45,7 +56,7 @@ use std::str::FromStr;
 
 pub use dices::list;
 use dices::parse::DiceParseError;
-pub use dices::DiceExpression;
+pub use dices::DiceFormula;
 pub use dist::Dist;
 use rand::{Rng, prelude::Distribution};
 
@@ -58,5 +69,5 @@ use rand::{Rng, prelude::Distribution};
 /// let x = diceystats::roll("d10 + d5", &mut thread_rng());
 /// ```
 pub fn roll<R: Rng + ?Sized>(s: &str, rng: &mut R) -> Result<isize, DiceParseError> {
-    DiceExpression::from_str(s).map(|x| x.sample(rng))
+    DiceFormula::from_str(s).map(|x| x.sample(rng))
 }

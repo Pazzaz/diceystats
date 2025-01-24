@@ -4,19 +4,19 @@ use num::{FromPrimitive, Num};
 
 use crate::Dist;
 
-use super::{DiceExpression, Evaluator};
+use super::{DiceFormula, Evaluator};
 
-impl DiceExpression {
+impl DiceFormula {
     /// Calculate the probability distribution of the outcomes of the expression.
     ///
     /// The function is generic over the number type used to represent probabilities.
     ///
     /// # Example
     /// ```
-    /// use diceystats::{DiceExpression, Dist};
+    /// use diceystats::{DiceFormula, Dist};
     /// use num::BigRational;
     ///
-    /// let expr: DiceExpression = "d10 * d4".parse().unwrap();
+    /// let expr: DiceFormula = "d10 * d4".parse().unwrap();
     /// let fast_dist: Dist<f64> = expr.dist();
     /// let exact_dist: Dist<BigRational> = expr.dist();
     /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
@@ -94,13 +94,13 @@ mod tests {
 
     #[test]
     fn repeat_simple() {
-        let yep: DiceExpression = "d9xd10".parse().unwrap();
+        let yep: DiceFormula = "d9xd10".parse().unwrap();
         assert_eq!(yep.dist::<BigRational>().mean(), "55/2".parse().unwrap(),);
     }
 
     #[bench]
     fn eval_6dx6d(b: &mut Bencher) {
-        let yep: DiceExpression = "d6xd6".parse().unwrap();
+        let yep: DiceFormula = "d6xd6".parse().unwrap();
         b.iter(|| {
             let res: Dist<BigRational> = yep.dist();
             test::black_box(res);
@@ -109,7 +109,7 @@ mod tests {
 
     #[bench]
     fn f64_30dx30d(b: &mut Bencher) {
-        let yep: DiceExpression = "d30xd30".parse().unwrap();
+        let yep: DiceFormula = "d30xd30".parse().unwrap();
         b.iter(|| {
             let res: Dist<f64> = yep.dist();
             test::black_box(res);
@@ -118,7 +118,7 @@ mod tests {
 
     #[bench]
     fn many_additions(b: &mut Bencher) {
-        let yep: DiceExpression = "d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20".parse().unwrap();
+        let yep: DiceFormula = "d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20".parse().unwrap();
         b.iter(|| {
             let res: Dist<f64> = yep.dist();
             test::black_box(res);
@@ -127,7 +127,7 @@ mod tests {
 
     #[bench]
     fn many_multiplications(b: &mut Bencher) {
-        let yep: DiceExpression = "d20*d20*d20".parse().unwrap();
+        let yep: DiceFormula = "d20*d20*d20".parse().unwrap();
         b.iter(|| {
             let res: Dist<f64> = yep.dist();
             test::black_box(res);
