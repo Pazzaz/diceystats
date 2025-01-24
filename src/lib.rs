@@ -1,5 +1,5 @@
 //! This crate is used to sample from and analyze dice formulas which use
-//! [dice notation](https://en.wikipedia.org/wiki/Dice_notation), in 
+//! [dice notation](https://en.wikipedia.org/wiki/Dice_notation), in
 //! the style of Dungeons and Dragons.
 //!
 //! The main user facing types are [DiceFormula] and [Dist].
@@ -54,9 +54,8 @@ mod dices;
 mod dist;
 use std::str::FromStr;
 
-pub use dices::list;
 use dices::parse::DiceParseError;
-pub use dices::DiceFormula;
+pub use dices::{DiceFormula, list};
 pub use dist::Dist;
 use rand::{Rng, prelude::Distribution};
 

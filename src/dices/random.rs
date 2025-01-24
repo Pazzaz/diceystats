@@ -1,11 +1,5 @@
-use std::{collections::HashMap, ops::{Add, Mul, Sub}};
-
-use num::BigRational;
-use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
-
-use crate::{Dist, dices::Bounds};
-
 use super::{DiceFormula, Evaluator, Part};
+use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
 
 fn random_none<R: Rng + ?Sized>(rng: &mut R, n: usize) -> Part {
     let choices = [Part::Const(n as isize), Part::Dice(n)];

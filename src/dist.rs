@@ -208,7 +208,7 @@ where
             let mut v_i = T::from_isize(i).unwrap();
             v_i -= &mean;
             v_i *= v;
-            total +=  v_i;
+            total += v_i;
         }
         total
     }
@@ -223,13 +223,9 @@ where
                     out.clear();
                     out.push(i)
                 }
-                Some(x) if x == v => {
-                    out.push(i)
-                }
+                Some(x) if x == v => out.push(i),
                 Some(_) => {}
-                None => {
-                    out.push(i)
-                },
+                None => out.push(i),
             }
         }
         out
