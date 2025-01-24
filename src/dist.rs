@@ -22,6 +22,7 @@ pub struct Dist<T> {
 }
 
 impl<T> Dist<T> {
+    #[must_use]
     pub fn map<U, F: Fn(&T) -> U>(&self, f: F) -> Dist<U> {
         Dist { values: self.values.iter().map(f).collect(), offset: self.offset }
     }
@@ -68,6 +69,7 @@ where
     for<'a> T: AddAssign<&'a T>,
 {
     /// Convert to a [`Distribution`]. Useful for sampling.
+    #[must_use]
     pub fn to_distribution(self) -> impl Distribution<isize> {
         WeightedIndex::new(self.values).unwrap().map(move |x| x as isize + self.offset)
     }

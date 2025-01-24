@@ -351,6 +351,7 @@ impl DiceFormula {
     /// let simple = complicated.simplified();
     /// assert_eq!(simple.to_string(), "d5 * 2");
     /// ```
+    #[must_use]
     pub fn simplified(&self) -> DiceFormula {
         let mut s = Simplifier {};
         self.traverse(&mut s)
@@ -369,6 +370,7 @@ impl DiceFormula {
     // Appends `other` to `self`, creating a broken state. `self.parts` has to have
     // a `Part` appended to it to make sense. Returns indices of top node of
     // `self` and `other`.
+    #[must_use]
     fn concat(&mut self, other: &DiceFormula) -> (usize, usize) {
         let orig_len = self.parts.len();
         self.parts.extend(other.parts.iter().map(|x| x.increased_offset(orig_len)));
@@ -405,12 +407,14 @@ impl DiceFormula {
         self
     }
 
+    #[must_use]
     fn could_be_negative(&self) -> bool {
         let mut s = Bounds { multi_add_negative: 0 };
         self.traverse(&mut s);
         s.multi_add_negative != 0
     }
 
+    #[must_use]
     pub fn bounds(&self) -> (isize, isize) {
         let mut s = Bounds { multi_add_negative: 0 };
         let (a, b) = self.traverse(&mut s);
