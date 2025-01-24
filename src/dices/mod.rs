@@ -1,5 +1,13 @@
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
+use dist::DistEvaluator;
+use num::{FromPrimitive, Num};
+use rand::Rng;
+use random::random_formula;
+use simplify::Simplifier;
+
+use crate::Dist;
+
 mod dist;
 pub mod list;
 pub mod parse;
@@ -302,6 +310,56 @@ impl DiceFormula {
 
     fn constant(n: isize) -> Self {
         Self { parts: vec![Part::Const(n)] }
+    }
+
+    /// Calculate the probability distribution of the outcomes of the
+    /// expression.
+    ///
+    /// The function is generic over the number type used to represent
+    /// probabilities.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use diceystats::{DiceFormula, Dist};
+    /// use num::BigRational;
+    ///
+    /// let expr: DiceFormula = "d10 * d4".parse().unwrap();
+    /// let fast_dist: Dist<f64> = expr.dist();
+    /// let exact_dist: Dist<BigRational> = expr.dist();
+    /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
+    /// ```
+    pub fn dist<T>(&self) -> Dist<T>
+    where
+        for<'a> T: MulAssign<&'a T>
+            + AddAssign<&'a T>
+            + Num
+            + Clone
+            + AddAssign
+            + std::fmt::Debug
+            + FromPrimitive,
+    {
+        let mut e = DistEvaluator { buffer: Vec::new() };
+        self.traverse(&mut e)
+    }
+
+    /// Create a random expression, modeleted as a tree with some `height` and
+    /// maximum die / constant `value_size`.
+    pub fn random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
+        random_formula(rng, height, value_size)
+    }
+
+    /// Simplify the expression using simple rewriting rules
+    /// ```
+    /// use diceystats::DiceFormula;
+    ///
+    /// let complicated: DiceFormula = "min((d4+d5)*5, d5x2)".parse().unwrap();
+    /// let simple = complicated.simplified();
+    /// assert_eq!(simple.to_string(), "d5 * 2");
+    /// ```
+    pub fn simplified(&self) -> DiceFormula {
+        let mut s = Simplifier {};
+        self.traverse(&mut s)
     }
 
     pub fn negate_inplace(&mut self) {

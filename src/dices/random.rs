@@ -26,32 +26,32 @@ impl Distribution<isize> for DiceFormula {
     }
 }
 
-impl DiceFormula {
-    /// Create a random expression, modeleted as a tree with some `height` and
-    /// maximum die / constant `value_size`.
-    pub fn make_random<R: Rng + ?Sized>(rng: &mut R, height: usize, value_size: usize) -> Self {
-        let dist = Uniform::new_inclusive(1, value_size);
-        let bottom = 2usize.pow(height as u32);
-        loop {
-            let mut parts = Vec::new();
-            for _ in 0..bottom {
-                let a1 = dist.sample(rng);
-                parts.push(random_none(rng, a1));
-            }
-            if height != 0 {
-                let mut i = 0;
-                for j in bottom.. {
-                    parts.push(random_dual(rng, i, i + 1));
-                    i += 2;
-                    if i >= j {
-                        break;
-                    }
+pub(crate) fn random_formula<R: Rng + ?Sized>(
+    rng: &mut R,
+    height: usize,
+    value_size: usize,
+) -> DiceFormula {
+    let dist = Uniform::new_inclusive(1, value_size);
+    let bottom = 2usize.pow(height as u32);
+    loop {
+        let mut parts = Vec::new();
+        for _ in 0..bottom {
+            let a1 = dist.sample(rng);
+            parts.push(random_none(rng, a1));
+        }
+        if height != 0 {
+            let mut i = 0;
+            for j in bottom.. {
+                parts.push(random_dual(rng, i, i + 1));
+                i += 2;
+                if i >= j {
+                    break;
                 }
             }
-            let exp = DiceFormula { parts };
-            if !exp.could_be_negative() {
-                return exp;
-            }
+        }
+        let exp = DiceFormula { parts };
+        if !exp.could_be_negative() {
+            return exp;
         }
     }
 }

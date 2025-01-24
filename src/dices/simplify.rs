@@ -4,7 +4,7 @@ use super::{DiceFormula, Evaluator, Part};
 
 // Traverses a `DiceFormula` and creates a simplified `DiceFormula`
 // using local/peephole optimizations.
-struct Simplifier {}
+pub(crate) struct Simplifier {}
 
 impl Evaluator<DiceFormula> for Simplifier {
     const LOSSY: bool = false;
@@ -116,21 +116,6 @@ impl Evaluator<DiceFormula> for Simplifier {
     }
 }
 
-impl DiceFormula {
-    /// Simplify the expression using simple rewriting rules
-    /// ```
-    /// use diceystats::DiceFormula;
-    ///
-    /// let complicated: DiceFormula = "min((d4+d5)*5, d5x2)".parse().unwrap();
-    /// let simple = complicated.simplified();
-    /// assert_eq!(simple.to_string(), "d5 * 2");
-    /// ```
-    pub fn simplified(&self) -> DiceFormula {
-        let mut s = Simplifier {};
-        self.traverse(&mut s)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,7 +129,7 @@ mod tests {
         for _ in 0..200 {
             // Generate a random expression and check if its
             // distribution is the same after being simplified.
-            let a = DiceFormula::make_random(&mut rng, 2, 10);
+            let a = DiceFormula::random(&mut rng, 2, 10);
             let a_simple = a.simplified();
             let dist = a.dist::<f64>();
             let simple_dist = a_simple.dist::<f64>();

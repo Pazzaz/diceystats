@@ -115,7 +115,7 @@ mod tests {
         for _ in 0..200 {
             // Generate a random expression and check if its distribution is the same after
             // being formatted and parsed into a new expression.
-            let a = DiceFormula::make_random(&mut rng, 2, 10);
+            let a = DiceFormula::random(&mut rng, 2, 10);
             let a_formatted = DiceFormula::from_str(&a.to_string()).unwrap();
             let dist = a.dist::<f64>();
             let dist_formatted = a_formatted.dist::<f64>();

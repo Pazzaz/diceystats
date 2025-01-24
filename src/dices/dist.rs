@@ -4,43 +4,10 @@ use num::{FromPrimitive, Num};
 
 use crate::Dist;
 
-use super::{DiceFormula, Evaluator};
+use super::Evaluator;
 
-impl DiceFormula {
-    /// Calculate the probability distribution of the outcomes of the
-    /// expression.
-    ///
-    /// The function is generic over the number type used to represent
-    /// probabilities.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use diceystats::{DiceFormula, Dist};
-    /// use num::BigRational;
-    ///
-    /// let expr: DiceFormula = "d10 * d4".parse().unwrap();
-    /// let fast_dist: Dist<f64> = expr.dist();
-    /// let exact_dist: Dist<BigRational> = expr.dist();
-    /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
-    /// ```
-    pub fn dist<T>(&self) -> Dist<T>
-    where
-        for<'a> T: MulAssign<&'a T>
-            + AddAssign<&'a T>
-            + Num
-            + Clone
-            + AddAssign
-            + std::fmt::Debug
-            + FromPrimitive,
-    {
-        let mut e = DistEvaluator { buffer: Vec::new() };
-        self.traverse(&mut e)
-    }
-}
-
-struct DistEvaluator<T> {
-    buffer: Vec<T>,
+pub(crate) struct DistEvaluator<T> {
+    pub(crate) buffer: Vec<T>,
 }
 
 impl<T: Num + Clone + AddAssign + std::fmt::Debug + FromPrimitive> Evaluator<Dist<T>>
@@ -90,6 +57,8 @@ where
 #[cfg(test)]
 mod tests {
     use num::BigRational;
+
+    use crate::DiceFormula;
 
     use super::*;
     extern crate test;
