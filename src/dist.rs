@@ -25,6 +25,42 @@ impl<T> Dist<T> {
     pub fn map<U, F: Fn(&T) -> U>(&self, f: F) -> Dist<U> {
         Dist { values: self.values.iter().map(f).collect(), offset: self.offset }
     }
+
+    /// The minimum value in the distribution's support.
+    pub fn min_value(&self) -> isize {
+        self.offset
+    }
+
+    /// The maximum value in the distribution's support.
+    pub fn max_value(&self) -> isize {
+        self.offset + (self.values.len() as isize) - 1
+    }
+
+    /// Iterate through the distribution's support, with each outcomes
+    /// probability.
+    pub fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+        self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
+    }
+
+    /// The chance that `n` will be sampled from the distribution. Returns
+    /// `None` if ouside the distribution's support.
+    ///
+    /// ```
+    /// use diceystats::{DiceFormula, Dist};
+    ///
+    /// let expr: DiceFormula = "d10".parse().unwrap();
+    /// let dist: Dist<f64> = expr.dist();
+    /// let p = dist.chance(3).unwrap_or(&0.0);
+    /// assert_eq!(1.0 / 10.0, *p);
+    /// ```
+    pub fn chance(&self, n: isize) -> Option<&T> {
+        usize::try_from(n - self.offset).ok().and_then(|x| self.values.get(x))
+    }
+
+    pub(crate) fn negate_inplace(&mut self) {
+        self.offset = -self.max_value();
+        self.values.reverse();
+    }
 }
 
 impl<T: SampleUniform + PartialOrd + Clone + Default> Dist<T>
@@ -134,44 +170,6 @@ where
             }
         }
         d.clone()
-    }
-}
-
-impl<T> Dist<T> {
-    /// The minimum value in the distributions support.
-    pub fn min_value(&self) -> isize {
-        self.offset
-    }
-
-    /// The maximum value in the distributions support.
-    pub fn max_value(&self) -> isize {
-        self.offset + (self.values.len() as isize) - 1
-    }
-
-    /// Iterate through the distributions support, with each outcomes
-    /// probability.
-    pub fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
-        self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
-    }
-
-    /// The chance that `n` will be sampled from the distribution. Returns
-    /// `None` if ouside the distributions support.
-    ///
-    /// ```
-    /// use diceystats::{DiceFormula, Dist};
-    ///
-    /// let expr: DiceFormula = "d10".parse().unwrap();
-    /// let dist: Dist<f64> = expr.dist();
-    /// let p = dist.chance(3).unwrap_or(&0.0);
-    /// assert_eq!(1.0 / 10.0, *p);
-    /// ```
-    pub fn chance(&self, n: isize) -> Option<&T> {
-        usize::try_from(n - self.offset).ok().and_then(|x| self.values.get(x))
-    }
-
-    pub(crate) fn negate_inplace(&mut self) {
-        self.offset = -self.max_value();
-        self.values.reverse();
     }
 }
 
