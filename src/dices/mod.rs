@@ -6,7 +6,7 @@ use rand::Rng;
 use random::random_formula;
 use simplify::Simplifier;
 
-use crate::Dist;
+use crate::{sparse_dist::{SparseDist, SparseDistEvaluator}, weird_dist::{WeirdDist, WeirdDistEvaluator}, Dist};
 
 mod dist;
 pub mod list;
@@ -65,7 +65,7 @@ impl Part {
 }
 
 // Used when traversing the tree of a `DiceFormula`
-trait Evaluator<T> {
+pub(crate) trait Evaluator<T> {
     // Used for `multi_add`: some evaluators have to reevaluate the right side
     // expression multiple times (LOSSY = true) while some don't (LOSSY = false)
     const LOSSY: bool;
@@ -334,6 +334,22 @@ impl DiceFormula {
         for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + FromPrimitive,
     {
         let mut e = DistEvaluator { buffer: Vec::new() };
+        self.traverse(&mut e)
+    }
+
+    pub(crate) fn dist_sparse<T>(&self) -> SparseDist<T>
+    where
+        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug,
+    {
+        let mut e = SparseDistEvaluator {};
+        self.traverse(&mut e)
+    }
+
+    pub(crate) fn dist_weird<T>(&self) -> WeirdDist<T>
+    where
+        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug,
+    {
+        let mut e = WeirdDistEvaluator {};
         self.traverse(&mut e)
     }
 

@@ -52,6 +52,8 @@
 #![feature(test)]
 mod dices;
 mod dist;
+mod sparse_dist;
+mod weird_dist;
 use std::str::FromStr;
 
 pub use dices::{DiceFormula, list, parse::DiceParseError};
