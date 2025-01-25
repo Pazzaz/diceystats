@@ -57,50 +57,56 @@ impl<T> WeirdDist<T> {
 
     fn get_mut_or_insert(&mut self, i: isize) -> Result<&mut T, usize> {
         if self.values.len() == 0 {
-            return Err(0);
-        }
-        let lower = &self.values[0];
-        let upper = self.values.last().unwrap();
-        if i > upper.0 {
-            Err(self.values.len())
-        } else if lower.0 <= i && i <= upper.0 {
-            let end = ((i - lower.0) as usize).min(self.values.len() - 1);
-            let start = (self.values.len() - 1).saturating_sub((upper.0 - i) as usize);
-            match self.values[start..=(end)].binary_search_by_key(&i, |x| x.0) {
-                Ok(x) => {
-                    Ok(&mut self.values[start+x].1)
-                },
-                Err(u) => {
-                    Err(start+u)
-                },
-            }
-        } else if i < lower.0 {
             Err(0)
         } else {
-            unreachable!()
+            let lower = &self.values[0];
+            let upper = self.values.last().unwrap();
+            if i > upper.0 {
+                Err(self.values.len())
+            } else if lower.0 <= i && i <= upper.0 {
+                let end = ((i - lower.0) as usize).min(self.values.len() - 1);
+                let start = (self.values.len() - 1).saturating_sub((upper.0 - i) as usize);
+                match self.values[start..=end].binary_search_by_key(&i, |x| x.0) {
+                    Ok(x) => {
+                        Ok(&mut self.values[start+x].1)
+                    },
+                    Err(u) => {
+                        Err(start+u)
+                    },
+                }
+            } else if i < lower.0 {
+                Err(0)
+            } else {
+                unreachable!()
+            }
         }
     }
 
     fn insert(&mut self, i: isize, v: T) {
-        let last = match self.values.last_mut() {
-            Some(x) => x,
-            None => {
+        if self.values.len() == 0 {
+            self.values.push((i, v));
+        } else {
+            let lower = &self.values[0];
+            let upper = self.values.last().unwrap();
+            if i > upper.0 {
                 self.values.push((i, v));
-                return;
-            },
-        };
-        match i.cmp(&last.0) {
-            std::cmp::Ordering::Greater => {
-                self.values.push((i, v));
-            },
-            std::cmp::Ordering::Equal => last.1 = v,
-            std::cmp::Ordering::Less => {
-                // TODO: Our binary guesses should be smarter
-                match self.values.binary_search_by_key(&i, |x| x.0) {
-                    Ok(x) => self.values[x].1 = v,
-                    Err(u) => self.values.insert(u, (i, v)),
+            } else if lower.0 <= i && i <= upper.0 {
+                let end = ((i - lower.0) as usize).min(self.values.len() - 1);
+                let start = (self.values.len() - 1).saturating_sub((upper.0 - i) as usize);
+                match self.values[start..=end].binary_search_by_key(&i, |x| x.0) {
+                    Ok(x) => {
+                        debug_assert!(self.values[x].0 == i);
+                        self.values[x].1 = v;
+                    },
+                    Err(u) => {
+                        self.values.insert(u, (i, v));
+                    },
                 }
-            },
+            } else if i < lower.0 {
+                self.values.insert(0, (i, v));
+            } else {
+                unreachable!()
+            }
         }
     }
 }
