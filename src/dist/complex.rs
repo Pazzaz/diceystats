@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem, ops::{AddAssign, MulAssign, SubAssign}};
+use std::{mem, ops::{AddAssign, MulAssign, SubAssign}};
 
 use num::{FromPrimitive, Num};
 

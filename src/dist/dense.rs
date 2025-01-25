@@ -11,6 +11,8 @@ use rand::{
     prelude::Distribution,
 };
 
+use crate::dices::Evaluator;
+
 /// A discrete distribution of outcomes.
 ///
 /// Probabilities have type `T`, e.g. [`f32`], [`f64`], `BigRational` etc.
@@ -418,5 +420,52 @@ where
         self.values.extend_from_slice(&buffer[..]);
         self.offset = min_value;
         buffer.clear();
+    }
+}
+
+pub(crate) struct DistEvaluator<T> {
+    pub(crate) buffer: Vec<T>,
+}
+
+impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<Dist<T>> for DistEvaluator<T>
+where
+    for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
+{
+    const LOSSY: bool = false;
+
+    fn dice(&mut self, d: usize) -> Dist<T> {
+        Dist::uniform(1, d as isize)
+    }
+
+    fn constant(&mut self, n: isize) -> Dist<T> {
+        Dist::constant(n)
+    }
+
+    fn multi_add_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.multi_add_inplace(b, &mut self.buffer);
+    }
+
+    fn negate_inplace(&mut self, a: &mut Dist<T>) {
+        a.negate_inplace();
+    }
+
+    fn add_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.add_inplace(b, &mut self.buffer);
+    }
+
+    fn mul_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.mul_inplace(b, &mut self.buffer);
+    }
+
+    fn sub_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.sub_inplace(b, &mut self.buffer);
+    }
+
+    fn max_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.max_inplace(b, &mut self.buffer);
+    }
+
+    fn min_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+        a.min_inplace(b, &mut self.buffer);
     }
 }

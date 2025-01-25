@@ -52,12 +52,10 @@
 #![feature(test)]
 mod dices;
 mod dist;
-mod sparse_dist;
-mod weird_dist;
 use std::str::FromStr;
 
 pub use dices::{DiceFormula, list, parse::DiceParseError};
-pub use dist::Dist;
+pub use crate::dist::dense::Dist;
 use rand::{Rng, prelude::Distribution};
 
 /// Roll dice and evaluate a dice formula.
