@@ -63,6 +63,7 @@ mod tests {
     extern crate test;
     use test::Bencher;
 
+
     #[test]
     fn repeat_simple() {
         let yep: DiceFormula = "d9xd10".parse().unwrap();
@@ -81,120 +82,65 @@ mod tests {
         assert_eq!(yep.dist::<BigRational>().mean(), yep.dist_weird::<BigRational>().mean());
     }
 
-    #[bench]
-    fn eval_6dx6d(b: &mut Bencher) {
-        let yep: DiceFormula = "d6xd6".parse().unwrap();
-        b.iter(|| {
-            let res = yep.dist::<BigRational>();
-            test::black_box(res);
-        });
+
+    macro_rules! dist_bench {
+        ($s:expr, $t:ty, $f1:ident, space) => {
+            #[bench]
+            fn $f1(b: &mut Bencher)  {
+                let yep: DiceFormula = $s.parse().unwrap();
+                b.iter(|| {
+                    let res = yep.dist_sparse::<$t>();
+                    test::black_box(res);
+                });
+            }
+        };
+        ($s:expr, $t:ty, $f1:ident, dense) => {
+            #[bench]
+            fn $f1(b: &mut Bencher)  {
+                let yep: DiceFormula = $s.parse().unwrap();
+                b.iter(|| {
+                    let res = yep.dist::<$t>();
+                    test::black_box(res);
+                });
+            }
+        };
+        ($s:expr, $t:ty, $f1:ident, weird) => {
+            #[bench]
+            fn $f1(b: &mut Bencher)  {
+                let yep: DiceFormula = $s.parse().unwrap();
+                b.iter(|| {
+                    let res = yep.dist_weird::<$t>();
+                    test::black_box(res);
+                });
+            }
+        };
     }
 
-    #[bench]
-    fn eval_6dx6d_sparse(b: &mut Bencher) {
-        let yep: DiceFormula = "d6xd6".parse().unwrap();
-        b.iter(|| {
-            let res = yep.dist_sparse::<BigRational>();
-            test::black_box(res);
-        });
-    }
+    dist_bench!("min(4*max(d6xd5, d5xd7), 5*max(d2xd6, d3xd5))", BigRational, complicated_dense, dense);
+    dist_bench!("min(4*max(d6xd5, d5xd7), 5*max(d2xd6, d3xd5))", BigRational, complicated_space, space);
+    dist_bench!("min(4*max(d6xd5, d5xd7), 5*max(d2xd6, d3xd5))", BigRational, complicated_weird, weird);
 
-    #[bench]
-    fn eval_6dx6d_weird(b: &mut Bencher) {
-        let yep: DiceFormula = "d6xd6".parse().unwrap();
-        b.iter(|| {
-            let res = yep.dist_weird::<BigRational>();
-            test::black_box(res);
-        });
-    }
+    dist_bench!("d6xd6", BigRational, eval_6dx6d_dense, dense);
+    dist_bench!("d6xd6", BigRational, eval_6dx6d_space, space);
+    dist_bench!("d6xd6", BigRational, eval_6dx6d_weird, weird);
 
-    #[bench]
-    fn large(b: &mut Bencher) {
-        let yep: DiceFormula = "d2*10000".parse().unwrap();
-        b.iter(|| {
-            let res: Dist<BigRational> = yep.dist();
-            test::black_box(res);
-        });
-    }
+    dist_bench!("d2*10000", BigRational, large_dense, dense);
+    dist_bench!("d2*10000", BigRational, large_space, space);
+    dist_bench!("d2*10000", BigRational, large_weird, weird);
 
-    #[bench]
-    fn large_sparse(b: &mut Bencher) {
-        let yep: DiceFormula = "d2*10000".parse().unwrap();
-        b.iter(|| {
-            let res: SparseDist<BigRational> = yep.dist_sparse();
-            test::black_box(res);
-        });
-    }
+    dist_bench!("d30xd30", f64, f64_d30xd30_dense, dense);
+    dist_bench!("d30xd30", f64, f64_d30xd30_space, space);
+    dist_bench!("d30xd30", f64, f64_d30xd30_weird, weird);
 
-    #[bench]
-    fn large_weird(b: &mut Bencher) {
-        let yep: DiceFormula = "d2*10000".parse().unwrap();
-        b.iter(|| {
-            let res = yep.dist_weird::<BigRational>();
-            test::black_box(res);
-        });
-    }
+    dist_bench!("d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20", f64, many_additions_dense, dense);
+    dist_bench!("d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20", f64, many_additions_space, space);
+    dist_bench!("d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20", f64, many_additions_weird, weird);
 
-    #[bench]
-    fn f64_30dx30d(b: &mut Bencher) {
-        let yep: DiceFormula = "d30xd30".parse().unwrap();
-        b.iter(|| {
-            let res: Dist<f64> = yep.dist();
-            test::black_box(res);
-        });
-    }
+    dist_bench!("d20*d20*d20*d20*d20", f64, many_multiplications_dense, dense);
+    dist_bench!("d20*d20*d20*d20*d20", f64, many_multiplications_space, space);
+    dist_bench!("d20*d20*d20*d20*d20", f64, many_multiplications_weird, weird);
 
-    #[bench]
-    fn many_additions(b: &mut Bencher) {
-        let yep: DiceFormula = "d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20".parse().unwrap();
-        b.iter(|| {
-            let res: Dist<f64> = yep.dist();
-            test::black_box(res);
-        });
-    }
-
-    #[bench]
-    fn many_additions_sparse(b: &mut Bencher) {
-        let yep: DiceFormula = "d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20".parse().unwrap();
-        b.iter(|| {
-            let res: SparseDist<f64> = yep.dist_sparse();
-            test::black_box(res);
-        });
-    }
-
-    #[bench]
-    fn many_additions_weird(b: &mut Bencher) {
-        let yep: DiceFormula = "d20+d20+d20+d20+d20+d20+d20+d20+d20+d20+d20".parse().unwrap();
-        b.iter(|| {
-            let res = yep.dist_weird::<f64>();
-            test::black_box(res);
-        });
-    }
-
-    #[bench]
-    fn many_multiplications(b: &mut Bencher) {
-        let yep: DiceFormula = "d20*d20*d20*d20*d20".parse().unwrap();
-        b.iter(|| {
-            let res: Dist<f64> = yep.dist();
-            test::black_box(res);
-        });
-    }
-
-    #[bench]
-    fn many_multiplications_sparse(b: &mut Bencher) {
-        let yep: DiceFormula = "d20*d20*d20*d20*d20".parse().unwrap();
-        b.iter(|| {
-            let res: SparseDist<f64> = yep.dist_sparse();
-            test::black_box(res);
-        });
-    }
-
-    #[bench]
-    fn many_multiplications_weird(b: &mut Bencher) {
-        let yep: DiceFormula = "d20*d20*d20*d20*d20".parse().unwrap();
-        b.iter(|| {
-            let res = yep.dist_weird::<f64>();
-            test::black_box(res);
-        });
-    }
+    dist_bench!("(-d20)*(-d20)*(-d20)", f64, negative_mul_dense, dense);
+    dist_bench!("(-d20)*(-d20)*(-d20)", f64, negative_mul_space, space);
+    dist_bench!("(-d20)*(-d20)*(-d20)", f64, negative_mul_weird, weird);
 }

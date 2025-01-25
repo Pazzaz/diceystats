@@ -4,12 +4,41 @@ use num::{FromPrimitive, Num};
 
 use crate::dices::Evaluator;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WeirdDist<T> {
     values: Vec<(isize, T)>,
 }
 
+fn binary_search_custom<T>(i: isize, values: &[(isize, T)]) -> Result<usize, usize> {
+    let mut low = 0;
+    let mut high = values.len();
+    debug_assert!(values[low].0 <= i && i <= values[high-1].0);
+    let mut mid = 0;
+    while low <= high {
+        mid = low + (high - low) / 2;
+
+        // Check if x is present at mid
+        if values[mid].0 == i {
+            return Ok(mid);
+        } else if values[mid].0 < i {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    return Err(mid);
+}
+
 impl<T> WeirdDist<T> {
+    fn correct(&self) -> bool {
+        for i in self.values.windows(2) {
+            if !(i[0].0 < i[1].0) {
+                return false;
+            }
+        }
+        true
+    }
+
     fn new() -> Self {
         WeirdDist { values: Vec::new() }
     }
@@ -26,31 +55,29 @@ impl<T> WeirdDist<T> {
         self.values.last().unwrap().0
     }
 
-    fn get_mut_or_insert(&mut self, i: isize, f: impl FnOnce() -> T) -> &mut T {
-        let last = match self.values.last() {
-            Some(x) => x,
-            None => {
-                self.values.push((i, f()));
-                return &mut self.values[0].1;
-            },
-        };
-        let last = self.values.last().unwrap();
-        match i.cmp(&last.0) {
-            std::cmp::Ordering::Greater => {
-                self.values.push((i, f()));
-                &mut self.values.last_mut().unwrap().1
-            },
-            std::cmp::Ordering::Equal => &mut self.values.last_mut().unwrap().1,
-            std::cmp::Ordering::Less => {
-                // TODO: Our binary guesses should be smarter
-                match self.values.binary_search_by_key(&i, |x| x.0) {
-                    Ok(x) => &mut self.values[x].1,
-                    Err(u) => {
-                        self.values.insert(u, (i, f()));
-                        &mut self.values[u].1
-                    },
-                }
-            },
+    fn get_mut_or_insert(&mut self, i: isize) -> Result<&mut T, usize> {
+        if self.values.len() == 0 {
+            return Err(0);
+        }
+        let lower = &self.values[0];
+        let upper = self.values.last().unwrap();
+        if i > upper.0 {
+            Err(self.values.len())
+        } else if lower.0 <= i && i <= upper.0 {
+            let end = ((i - lower.0) as usize).min(self.values.len() - 1);
+            let start = (self.values.len() - 1).saturating_sub((upper.0 - i) as usize);
+            match self.values[start..=(end)].binary_search_by_key(&i, |x| x.0) {
+                Ok(x) => {
+                    Ok(&mut self.values[start+x].1)
+                },
+                Err(u) => {
+                    Err(start+u)
+                },
+            }
+        } else if i < lower.0 {
+            Err(0)
+        } else {
+            unreachable!()
         }
     }
 
@@ -92,6 +119,23 @@ where
         out
     }
 }
+impl<T: Num> WeirdDist<T>
+where
+    for<'a> T: MulAssign<&'a T>
+{
+    fn mul_constant(&mut self, c: isize) {
+        if c == 0 {
+            self.values.clear();
+            self.values.push((0, T::one()));
+        }
+        for (a_k, _) in self.values.iter_mut() {
+            *a_k *= c;
+        }
+        if c < 0 {
+            self.values.reverse();
+        }
+    }
+}
 
 pub(crate) struct WeirdDistEvaluator;
 
@@ -106,22 +150,20 @@ where
         for i in 1..=d {
             out.push((i as isize, T::one() / T::from_usize(d).unwrap()));
         }
-        WeirdDist {values: out}
+        let out = WeirdDist {values: out};
+        debug_assert!(out.correct());
+        out
     }
 
     fn constant(&mut self, n: isize) -> WeirdDist<T> {
         let mut out = Vec::new();
         out.push((n, T::one()));
-        WeirdDist {values: out}
+        let out = WeirdDist {values: out};
+        debug_assert!(out.correct());
+        out
     }
 
     fn multi_add_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
-        let mut a_values: Vec<(usize, T)> = a.values.drain(..).map(|x| {
-            debug_assert!(x.0 >= 0);
-            (x.0 as usize, x.1)
-        }).collect();
-        a_values.sort_by_key(|x| x.0);
-
         let mut out1: WeirdDist<T> = WeirdDist::new();
         let mut out2: WeirdDist<T> = WeirdDist::new();
         let mut out_final: WeirdDist<T> = WeirdDist::new();
@@ -129,8 +171,10 @@ where
         out2.insert(0, T::one());
 
         let mut previous: usize = 0;
-        for (a_k, a_v) in a_values {
+        for (a_k_i, a_v) in a.values.drain(..) {
+            debug_assert!(a_k_i >= 0);
             debug_assert!(a_v != T::zero());
+            let a_k = a_k_i as usize;
 
             let new_offset = a_k - previous;
             previous = a_k;
@@ -142,8 +186,12 @@ where
                     for (c_k, c_v) in &out1.values {
                         let mut tmp = b_v.clone();
                         tmp *= c_v;
-                        let entry = out2.get_mut_or_insert(b_k + c_k, || T::zero());
-                        *entry += tmp;
+                        match out2.get_mut_or_insert(b_k + c_k) {
+                            Ok(entry) => {
+                                *entry += tmp;
+                            },
+                            Err(x) => out2.values.insert(x, (b_k + c_k, tmp)),
+                        }
                     }
                 }
             }
@@ -151,80 +199,119 @@ where
             for (c_k, c_v) in &out2.values {
                 let mut tmp = a_v.clone();
                 tmp *= c_v;
-                let entry = out_final.get_mut_or_insert(*c_k, || T::zero());
-                *entry += tmp;
+                match out_final.get_mut_or_insert(*c_k) {
+                    Ok(entry) => {
+                        *entry += tmp;
+                    },
+                    Err(x) => out_final.values.insert(x, (*c_k, tmp)),
+                }
             }
         }
+        debug_assert!(out_final.correct());
         *a = out_final;
     }
 
     fn negate_inplace(&mut self, a: &mut WeirdDist<T>) {
         a.values = a.values.drain(..).map(|(k, v)| (-k, v)).collect();
         a.values.reverse();
+        debug_assert!(a.correct());
     }
 
     fn add_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
         let mut out = WeirdDist::new();
         for (a_k, a_v) in a.values.iter() {
             for (b_k, b_v) in b.values.iter() {
-                let entry = out.get_mut_or_insert(a_k + b_k, || T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                match out.get_mut_or_insert(a_k + b_k) {
+                    Ok(entry) => {
+                        *entry += tmp;
+                    },
+                    Err(x) => out.values.insert(x, (a_k + b_k, tmp)),
+                }
             }
         }
         *a = out;
+        debug_assert!(a.correct());
     }
 
     fn mul_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
-        let mut out = WeirdDist::new();
-        for (a_k, a_v) in a.values.iter() {
-            for (b_k, b_v) in b.values.iter() {
-                let entry = out.get_mut_or_insert(a_k * b_k, || T::zero());
-                let mut tmp = a_v.clone();
-                tmp *= b_v;
-                *entry += tmp;
+        if b.values.len() == 1 {
+            a.mul_constant(b.values[0].0);
+        } else if a.values.len() == 1 {
+            let a_k = a.values[0].0;
+            *a = b.clone();
+            a.mul_constant(a_k);
+        } else {
+            let mut out = WeirdDist::new();
+            for (a_k, a_v) in a.values.iter() {
+                for (b_k, b_v) in b.values.iter() {
+                    let mut tmp = a_v.clone();
+                    tmp *= b_v;
+                    match out.get_mut_or_insert(a_k * b_k) {
+                        Ok(entry) => {
+                            *entry += tmp;
+                        },
+                        Err(x) => out.values.insert(x, (a_k * b_k, tmp)),
+                    }
+                }
             }
+            *a = out;
+            debug_assert!(a.correct());
         }
-        *a = out;
     }
 
     fn sub_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
         let mut out = WeirdDist::new();
         for (a_k, a_v) in a.values.iter() {
             for (b_k, b_v) in b.values.iter() {
-                let entry = out.get_mut_or_insert(a_k - b_k, || T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                match out.get_mut_or_insert(a_k - b_k) {
+                    Ok(entry) => {
+                        *entry += tmp;
+                    },
+                    Err(x) => out.values.insert(x, (a_k - b_k, tmp)),
+                }
             }
         }
         *a = out;
+        debug_assert!(a.correct());
     }
 
     fn max_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
         let mut out = WeirdDist::new();
         for (a_k, a_v) in a.values.iter() {
             for (b_k, b_v) in b.values.iter() {
-                let entry = out.get_mut_or_insert(*a_k.max(b_k), || T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                match out.get_mut_or_insert(*a_k.max(b_k)) {
+                    Ok(entry) => {
+                        *entry += tmp;
+                    },
+                    Err(x) => out.values.insert(x, (*a_k.max(b_k), tmp)),
+                }
             }
         }
         *a = out;
+        debug_assert!(a.correct());
     }
 
     fn min_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
         let mut out = WeirdDist::new();
         for (a_k, a_v) in a.values.iter() {
             for (b_k, b_v) in b.values.iter() {
-                let entry = out.get_mut_or_insert(*a_k.min(b_k), || T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                match out.get_mut_or_insert(*a_k.min(b_k)) {
+                    Ok(entry) => {
+                        *entry += tmp;
+                    },
+                    Err(x) => out.values.insert(x, (*a_k.min(b_k), tmp)),
+                }
             }
         }
         *a = out;
+        debug_assert!(a.correct());
     }
 }
