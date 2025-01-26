@@ -9,26 +9,6 @@ pub struct WeirdDist<T> {
     values: Vec<(isize, T)>,
 }
 
-fn binary_search_custom<T>(i: isize, values: &[(isize, T)]) -> Result<usize, usize> {
-    let mut low = 0;
-    let mut high = values.len();
-    debug_assert!(values[low].0 <= i && i <= values[high-1].0);
-    let mut mid = 0;
-    while low <= high {
-        mid = low + (high - low) / 2;
-
-        // Check if x is present at mid
-        if values[mid].0 == i {
-            return Ok(mid);
-        } else if values[mid].0 < i {
-            low = mid + 1;
-        } else {
-            high = mid - 1;
-        }
-    }
-    return Err(mid);
-}
-
 impl<T> WeirdDist<T> {
     fn correct(&self) -> bool {
         for i in self.values.windows(2) {
@@ -56,16 +36,16 @@ impl<T> WeirdDist<T> {
     }
 
     fn get_mut_or_insert(&mut self, i: isize) -> Result<&mut T, usize> {
-        if self.values.len() == 0 {
+        if self.values.is_empty() {
             Err(0)
         } else {
-            let lower = &self.values[0];
-            let upper = self.values.last().unwrap();
-            if i > upper.0 {
+            let lower = self.values[0].0;
+            let upper = self.values.last().unwrap().0;
+            if i > upper {
                 Err(self.values.len())
-            } else if lower.0 <= i && i <= upper.0 {
-                let end = ((i - lower.0) as usize).min(self.values.len() - 1);
-                let start = (self.values.len() - 1).saturating_sub((upper.0 - i) as usize);
+            } else if lower <= i && i <= upper {
+                let end = ((i - lower) as usize).min(self.values.len() - 1);
+                let start = (self.values.len() - 1).saturating_sub((upper - i) as usize);
                 match self.values[start..=end].binary_search_by_key(&i, |x| x.0) {
                     Ok(x) => {
                         Ok(&mut self.values[start+x].1)
@@ -74,7 +54,7 @@ impl<T> WeirdDist<T> {
                         Err(start+u)
                     },
                 }
-            } else if i < lower.0 {
+            } else if i < lower {
                 Err(0)
             } else {
                 unreachable!()
