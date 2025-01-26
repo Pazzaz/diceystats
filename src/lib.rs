@@ -8,7 +8,7 @@
 //!
 //! # Usage
 //! ```
-//! use diceystats::{DiceFormula, Dist, dist::DistTrait, roll};
+//! use diceystats::{DiceFormula, dist::Dist, dist::DistTrait, roll};
 //! use num::BigRational;
 //! use rand::thread_rng;
 //!
@@ -36,7 +36,7 @@
 //! there's a chance of rolling a negative *amount* of dice
 //!
 //! ```
-//! use diceystats::{DiceFormula, Dist, roll};
+//! use diceystats::{DiceFormula, dist::Dist, roll};
 //! use rand::thread_rng;
 //!
 //! roll("(d4 - d4)xd20", &mut thread_rng()).is_err();
@@ -55,7 +55,6 @@ mod dices;
 pub mod dist;
 use std::str::FromStr;
 
-pub use crate::dist::Dist;
 pub use dices::{DiceFormula, list, parse::DiceParseError};
 use rand::{Rng, prelude::Distribution};
 

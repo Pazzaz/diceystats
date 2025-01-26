@@ -1,10 +1,7 @@
 //! Exhaustive search of dice expressions
 
 use super::DiceFormula;
-use crate::{
-    Dist,
-    dices::{Bounds, Evaluator},
-};
+use crate::dices::{Bounds, Dist, Evaluator};
 use num::BigRational;
 use std::{
     collections::HashMap,
@@ -46,12 +43,12 @@ pub fn every_tree(
     let mut expressions: HashMap<Dist<BigRational>, DiceFormula> = HashMap::default();
     for &i in dice {
         let d = DiceFormula::dice(i);
-        let d_dist = d.dist::<BigRational>();
+        let d_dist: Dist<BigRational> = d.dist();
         expressions.entry(d_dist).or_insert(d);
     }
     for &i in constants {
         let c = DiceFormula::constant(i);
-        let c_dist = c.dist::<BigRational>();
+        let c_dist: Dist<BigRational> = c.dist();
         expressions.entry(c_dist).or_insert(c);
     }
     for i in 0..height {

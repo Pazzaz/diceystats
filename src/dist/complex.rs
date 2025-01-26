@@ -92,10 +92,14 @@ impl<T> WeirdDist<T> {
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for WeirdDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T> for WeirdDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
 {
+    fn evaluator() -> impl Evaluator<Self> {
+        WeirdDistEvaluator {}
+    }
+
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().map(|x| (x.0, &x.1))
     }
@@ -121,7 +125,7 @@ where
 
 pub(crate) struct WeirdDistEvaluator;
 
-impl<T: Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug> Evaluator<WeirdDist<T>>
+impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<WeirdDist<T>>
     for WeirdDistEvaluator
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,

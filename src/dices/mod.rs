@@ -5,9 +5,8 @@ use rand::Rng;
 use random::random_formula;
 use simplify::Simplifier;
 
-use crate::{
-    Dist,
-    dist::{DistEvaluator, SparseDist, SparseDistEvaluator, WeirdDist, WeirdDistEvaluator},
+use crate::dist::{
+    Dist, DistEvaluator, DistTrait, SparseDist, SparseDistEvaluator, WeirdDist, WeirdDistEvaluator
 };
 
 pub mod list;
@@ -66,7 +65,7 @@ impl Part {
 }
 
 // Used when traversing the tree of a `DiceFormula`
-pub(crate) trait Evaluator<T> {
+pub trait Evaluator<T> {
     // Used for `multi_add`: some evaluators have to reevaluate the right side
     // expression multiple times (LOSSY = true) while some don't (LOSSY = false)
     const LOSSY: bool;
@@ -322,7 +321,7 @@ impl DiceFormula {
     /// # Example
     ///
     /// ```
-    /// use diceystats::{DiceFormula, Dist, dist::DistTrait};
+    /// use diceystats::{DiceFormula, dist::Dist, dist::DistTrait};
     /// use num::BigRational;
     ///
     /// let expr: DiceFormula = "d10 * d4".parse().unwrap();
@@ -330,39 +329,11 @@ impl DiceFormula {
     /// let exact_dist: Dist<BigRational> = expr.dist();
     /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
     /// ```
-    pub fn dist<T>(&self) -> Dist<T>
+    pub fn dist<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone + PartialOrd, D: DistTrait<'a, T>>(&self) -> D
     where
-        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + FromPrimitive,
+        for<'b> T: MulAssign<&'b T> + AddAssign<&'b T> + SubAssign<&'b T>,
     {
-        let mut e = DistEvaluator { buffer: Vec::new() };
-        self.traverse(&mut e)
-    }
-
-    pub fn dist_sparse<T>(&self) -> SparseDist<T>
-    where
-        for<'a> T: MulAssign<&'a T>
-            + AddAssign<&'a T>
-            + Num
-            + Clone
-            + AddAssign
-            + FromPrimitive
-            + std::fmt::Debug,
-    {
-        let mut e = SparseDistEvaluator {};
-        self.traverse(&mut e)
-    }
-
-    pub fn dist_weird<T>(&self) -> WeirdDist<T>
-    where
-        for<'a> T: MulAssign<&'a T>
-            + AddAssign<&'a T>
-            + Num
-            + Clone
-            + AddAssign
-            + FromPrimitive
-            + std::fmt::Debug,
-    {
-        let mut e = WeirdDistEvaluator {};
+        let mut e = D::evaluator();
         self.traverse(&mut e)
     }
 

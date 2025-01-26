@@ -51,7 +51,7 @@ impl<T> Dist<T> {
     /// `None` if ouside the distribution's support.
     ///
     /// ```
-    /// use diceystats::{DiceFormula, Dist};
+    /// use diceystats::{DiceFormula, dist::Dist};
     ///
     /// let expr: DiceFormula = "d10".parse().unwrap();
     /// let dist: Dist<f64> = expr.dist();
@@ -87,12 +87,12 @@ where
     /// difference of probabilities.
     ///
     /// ```
-    /// use diceystats::{DiceFormula, Dist};
+    /// use diceystats::{DiceFormula, dist::Dist};
     /// use num::BigRational;
     ///
-    /// let expr1 = "d4xd3".parse::<DiceFormula>().unwrap();
-    /// let expr2 = "d4+d6".parse::<DiceFormula>().unwrap();
-    /// let d: BigRational = expr1.dist().distance(&expr2.dist());
+    /// let expr1: Dist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
+    /// let expr2: Dist<_> = "d4+d6".parse::<DiceFormula>().unwrap().dist();
+    /// let d: BigRational = expr1.distance(&expr2);
     /// assert_eq!(d, "25/54".parse().unwrap())
     /// ```
     pub fn distance(&self, other: &Dist<T>) -> T {
@@ -130,12 +130,12 @@ where
     /// difference of probabilities
     ///
     /// ```
-    /// use diceystats::{DiceFormula, Dist};
+    /// use diceystats::{DiceFormula, dist::Dist};
     /// use num::BigRational;
     ///
-    /// let expr1 = "d4xd3".parse::<DiceFormula>().unwrap();
-    /// let expr2 = "d4+d6".parse::<DiceFormula>().unwrap();
-    /// let d: BigRational = expr1.dist().distance_max(&expr2.dist());
+    /// let expr1: Dist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
+    /// let expr2: Dist<_> = "d4+d6".parse::<DiceFormula>().unwrap().dist();
+    /// let d: BigRational = expr1.distance_max(&expr2);
     /// assert_eq!(d, "1/12".parse().unwrap())
     /// ```
     pub fn distance_max(&self, other: &Dist<T>) -> T {
@@ -179,10 +179,13 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for Dist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T> for Dist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
+    fn evaluator() -> impl Evaluator<Self> {
+        DistEvaluator { buffer: Vec::new() }
+    }
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
     }

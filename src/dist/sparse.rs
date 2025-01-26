@@ -15,10 +15,13 @@ pub struct SparseDist<T> {
     values: FnvHashMap<isize, T>,
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for SparseDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T> for SparseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
+    fn evaluator() -> impl Evaluator<Self> {
+        SparseDistEvaluator {}
+    }
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         let mut values: Vec<(isize, &T)> = self.values.iter().map(|x| (*x.0, x.1)).collect();
         values.sort_by_key(|x| x.0);
@@ -28,7 +31,7 @@ where
 
 pub(crate) struct SparseDistEvaluator;
 
-impl<T: Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug> Evaluator<SparseDist<T>>
+impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<SparseDist<T>>
     for SparseDistEvaluator
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
