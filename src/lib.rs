@@ -9,6 +9,7 @@
 //! # Usage
 //! ```
 //! use diceystats::{DiceFormula, Dist, roll};
+//! use diceystats::dist::DistTrait;
 //! use num::BigRational;
 //! use rand::thread_rng;
 //!
@@ -50,12 +51,13 @@
 //! possible outcomes, would store many zero probability outcomes.
 
 #![feature(test)]
+
 mod dices;
-mod dist;
+pub mod dist;
 use std::str::FromStr;
 
 pub use dices::{DiceFormula, list, parse::DiceParseError};
-pub use crate::dist::dense::Dist;
+pub use crate::dist::Dist;
 use rand::{Rng, prelude::Distribution};
 
 /// Roll dice and evaluate a dice formula.

@@ -13,6 +13,8 @@ use rand::{
 
 use crate::dices::Evaluator;
 
+use super::DistTrait;
+
 /// A discrete distribution of outcomes.
 ///
 /// Probabilities have type `T`, e.g. [`f32`], [`f64`], `BigRational` etc.
@@ -177,6 +179,14 @@ where
     }
 }
 
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for Dist<T>
+where
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T> {
+    fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+        self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
+    }
+}
+
 impl<T: Num + FromPrimitive> Dist<T> {
     pub(crate) fn uniform(min: isize, max: isize) -> Self {
         debug_assert!(min <= max);
@@ -193,51 +203,6 @@ impl<T: Num + Clone> Dist<T> {
         let values = vec![T::one()];
 
         Dist { values, offset: n }
-    }
-}
-
-impl<T: Num + FromPrimitive + AddAssign + PartialOrd> Dist<T>
-where
-    for<'a> T: MulAssign<&'a T> + SubAssign<&'a T>,
-{
-    pub fn mean(&self) -> T {
-        let mut out = T::zero();
-        for (i, v) in self.values.iter().enumerate() {
-            let mut thing = T::from_usize(i).unwrap();
-            thing *= v;
-            out += thing;
-        }
-        T::from_isize(self.offset).unwrap() + out
-    }
-
-    pub fn variance(&self) -> T {
-        let mean = self.mean();
-        let mut total = T::zero();
-        for (i, v) in self.iter_enumerate() {
-            let mut v_i = T::from_isize(i).unwrap();
-            v_i -= &mean;
-            v_i *= v;
-            total += v_i;
-        }
-        total
-    }
-
-    pub fn modes(&self) -> Vec<isize> {
-        let mut out = Vec::new();
-        let mut best: Option<&T> = None;
-        for (i, v) in self.iter_enumerate() {
-            match best {
-                Some(x) if x < v => {
-                    best = Some(v);
-                    out.clear();
-                    out.push(i)
-                }
-                Some(x) if x == v => out.push(i),
-                Some(_) => {}
-                None => out.push(i),
-            }
-        }
-        out
     }
 }
 

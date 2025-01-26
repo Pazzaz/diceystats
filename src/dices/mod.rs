@@ -5,7 +5,7 @@ use rand::Rng;
 use random::random_formula;
 use simplify::Simplifier;
 
-use crate::{dist::{complex::{WeirdDist, WeirdDistEvaluator}, dense::DistEvaluator, sparse::{SparseDist, SparseDistEvaluator}}, Dist};
+use crate::{dist::{WeirdDist, WeirdDistEvaluator, DistEvaluator, SparseDist, SparseDistEvaluator}, Dist};
 
 pub mod list;
 pub mod parse;
@@ -320,6 +320,7 @@ impl DiceFormula {
     ///
     /// ```
     /// use diceystats::{DiceFormula, Dist};
+    /// use diceystats::dist::DistTrait;
     /// use num::BigRational;
     ///
     /// let expr: DiceFormula = "d10 * d4".parse().unwrap();

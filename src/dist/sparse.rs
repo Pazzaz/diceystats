@@ -5,23 +5,20 @@ use num::{FromPrimitive, Num};
 
 use crate::dices::Evaluator;
 
+use super::DistTrait;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseDist<T> {
     values: FnvHashMap<isize, T>,
 }
 
-impl<T: Num + FromPrimitive + AddAssign + PartialOrd> SparseDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for SparseDist<T>
 where
-    for<'a> T: MulAssign<&'a T> + SubAssign<&'a T>,
-{
-    pub fn mean(&self) -> T {
-        let mut out = T::zero();
-        for (&a_k, a_v) in self.values.iter() {
-            let mut thing = T::from_isize(a_k).unwrap();
-            thing *= a_v;
-            out += thing;
-        }
-        out
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T> {
+    fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+        let mut values: Vec<(isize, &T)> = self.values.iter().map(|x| (*x.0, x.1)).collect();
+        values.sort_by_key(|x| x.0);
+        values.into_iter()
     }
 }
 

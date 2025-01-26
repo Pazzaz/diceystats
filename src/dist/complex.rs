@@ -4,6 +4,8 @@ use num::{FromPrimitive, Num};
 
 use crate::dices::Evaluator;
 
+use super::DistTrait;
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WeirdDist<T> {
     values: Vec<(isize, T)>,
@@ -91,20 +93,14 @@ impl<T> WeirdDist<T> {
     }
 }
 
-impl<T: Num + FromPrimitive + AddAssign + PartialOrd> WeirdDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for WeirdDist<T>
 where
-    for<'a> T: MulAssign<&'a T> + SubAssign<&'a T>,
-{
-    pub fn mean(&self) -> T {
-        let mut out = T::zero();
-        for (a_k, a_v) in self.iter() {
-            let mut thing = T::from_isize(*a_k).unwrap();
-            thing *= a_v;
-            out += thing;
-        }
-        out
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T> {
+    fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+        self.values.iter().map(|x| (x.0, &x.1))
     }
 }
+
 impl<T: Num> WeirdDist<T>
 where
     for<'a> T: MulAssign<&'a T>

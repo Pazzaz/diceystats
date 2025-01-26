@@ -3,7 +3,7 @@ use num::BigRational;
 extern crate test;
 use test::Bencher;
 
-use crate::DiceFormula;
+use crate::{dist::DistTrait, DiceFormula};
 
 
 #[test]
