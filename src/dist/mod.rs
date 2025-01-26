@@ -6,22 +6,19 @@ mod complex;
 mod dense;
 mod sparse;
 pub use complex::WeirdDist;
-pub use dense::Dist;
-pub use sparse::SparseDist;
 pub(crate) use complex::WeirdDistEvaluator;
+pub use dense::Dist;
 pub(crate) use dense::DistEvaluator;
+pub use sparse::SparseDist;
 pub(crate) use sparse::SparseDistEvaluator;
 
 #[cfg(test)]
 pub mod tests;
 
-//         impl<T: Num + FromPrimitive + AddAssign + PartialOrd> Dist<T>
-// where
-//     for<'a> T: MulAssign<&'a T> + SubAssign<&'a T>,
 pub trait DistTrait<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T> {
-    
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+{
     // Iteratete through the distribution's support, in order.
     fn iter_enumerate(&'a self) -> impl Iterator<Item = (isize, &'a T)>;
 

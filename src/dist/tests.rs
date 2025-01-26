@@ -3,8 +3,7 @@ use num::BigRational;
 extern crate test;
 use test::Bencher;
 
-use crate::{dist::DistTrait, DiceFormula};
-
+use crate::{DiceFormula, dist::DistTrait};
 
 #[test]
 fn repeat_simple() {
@@ -24,11 +23,10 @@ fn sparse_equal_weird() {
     assert_eq!(yep.dist::<BigRational>().mean(), yep.dist_weird::<BigRational>().mean());
 }
 
-
 macro_rules! dist_bench {
     ($s:expr, $t:ty, $f1:ident, space) => {
         #[bench]
-        fn $f1(b: &mut Bencher)  {
+        fn $f1(b: &mut Bencher) {
             let yep: DiceFormula = $s.parse().unwrap();
             b.iter(|| {
                 let res = yep.dist_sparse::<$t>();
@@ -38,7 +36,7 @@ macro_rules! dist_bench {
     };
     ($s:expr, $t:ty, $f1:ident, dense) => {
         #[bench]
-        fn $f1(b: &mut Bencher)  {
+        fn $f1(b: &mut Bencher) {
             let yep: DiceFormula = $s.parse().unwrap();
             b.iter(|| {
                 let res = yep.dist::<$t>();
@@ -48,7 +46,7 @@ macro_rules! dist_bench {
     };
     ($s:expr, $t:ty, $f1:ident, weird) => {
         #[bench]
-        fn $f1(b: &mut Bencher)  {
+        fn $f1(b: &mut Bencher) {
             let yep: DiceFormula = $s.parse().unwrap();
             b.iter(|| {
                 let res = yep.dist_weird::<$t>();

@@ -8,8 +8,7 @@
 //!
 //! # Usage
 //! ```
-//! use diceystats::{DiceFormula, Dist, roll};
-//! use diceystats::dist::DistTrait;
+//! use diceystats::{DiceFormula, Dist, dist::DistTrait, roll};
 //! use num::BigRational;
 //! use rand::thread_rng;
 //!
@@ -56,8 +55,8 @@ mod dices;
 pub mod dist;
 use std::str::FromStr;
 
-pub use dices::{DiceFormula, list, parse::DiceParseError};
 pub use crate::dist::Dist;
+pub use dices::{DiceFormula, list, parse::DiceParseError};
 use rand::{Rng, prelude::Distribution};
 
 /// Roll dice and evaluate a dice formula.

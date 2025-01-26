@@ -5,7 +5,10 @@ use rand::Rng;
 use random::random_formula;
 use simplify::Simplifier;
 
-use crate::{dist::{WeirdDist, WeirdDistEvaluator, DistEvaluator, SparseDist, SparseDistEvaluator}, Dist};
+use crate::{
+    Dist,
+    dist::{DistEvaluator, SparseDist, SparseDistEvaluator, WeirdDist, WeirdDistEvaluator},
+};
 
 pub mod list;
 pub mod parse;
@@ -319,8 +322,7 @@ impl DiceFormula {
     /// # Example
     ///
     /// ```
-    /// use diceystats::{DiceFormula, Dist};
-    /// use diceystats::dist::DistTrait;
+    /// use diceystats::{DiceFormula, Dist, dist::DistTrait};
     /// use num::BigRational;
     ///
     /// let expr: DiceFormula = "d10 * d4".parse().unwrap();
@@ -338,7 +340,13 @@ impl DiceFormula {
 
     pub fn dist_sparse<T>(&self) -> SparseDist<T>
     where
-        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug,
+        for<'a> T: MulAssign<&'a T>
+            + AddAssign<&'a T>
+            + Num
+            + Clone
+            + AddAssign
+            + FromPrimitive
+            + std::fmt::Debug,
     {
         let mut e = SparseDistEvaluator {};
         self.traverse(&mut e)
@@ -346,7 +354,13 @@ impl DiceFormula {
 
     pub fn dist_weird<T>(&self) -> WeirdDist<T>
     where
-        for<'a> T: MulAssign<&'a T> + AddAssign<&'a T> + Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug,
+        for<'a> T: MulAssign<&'a T>
+            + AddAssign<&'a T>
+            + Num
+            + Clone
+            + AddAssign
+            + FromPrimitive
+            + std::fmt::Debug,
     {
         let mut e = WeirdDistEvaluator {};
         self.traverse(&mut e)

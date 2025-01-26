@@ -181,7 +181,8 @@ where
 
 impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for Dist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T> {
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+{
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
     }

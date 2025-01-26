@@ -1,4 +1,7 @@
-use std::{mem, ops::{AddAssign, MulAssign, SubAssign}};
+use std::{
+    mem,
+    ops::{AddAssign, MulAssign, SubAssign},
+};
 
 use fnv::FnvHashMap;
 use num::{FromPrimitive, Num};
@@ -14,7 +17,8 @@ pub struct SparseDist<T> {
 
 impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for SparseDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T> {
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+{
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         let mut values: Vec<(isize, &T)> = self.values.iter().map(|x| (*x.0, x.1)).collect();
         values.sort_by_key(|x| x.0);
@@ -24,7 +28,8 @@ where
 
 pub(crate) struct SparseDistEvaluator;
 
-impl<T: Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug> Evaluator<SparseDist<T>> for SparseDistEvaluator
+impl<T: Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug> Evaluator<SparseDist<T>>
+    for SparseDistEvaluator
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
@@ -35,27 +40,34 @@ where
         for i in 1..=d {
             out.insert(i as isize, T::one() / T::from_usize(d).unwrap());
         }
-        SparseDist {values: out}
+        SparseDist { values: out }
     }
 
     fn constant(&mut self, n: isize) -> SparseDist<T> {
         let mut out = FnvHashMap::with_capacity_and_hasher(1, Default::default());
-            out.insert(n, T::one());
-        SparseDist {values: out}
+        out.insert(n, T::one());
+        SparseDist { values: out }
     }
 
     fn multi_add_inplace(&mut self, a: &mut SparseDist<T>, b: &SparseDist<T>) {
         let a_len = a.values.len();
         let b_len = b.values.len();
-        let mut a_values: Vec<(usize, T)> = a.values.drain().map(|x| {
-            debug_assert!(x.0 >= 0);
-            (x.0 as usize, x.1)
-        }).collect();
+        let mut a_values: Vec<(usize, T)> = a
+            .values
+            .drain()
+            .map(|x| {
+                debug_assert!(x.0 >= 0);
+                (x.0 as usize, x.1)
+            })
+            .collect();
         a_values.sort_by_key(|x| x.0);
 
-        let mut out1: FnvHashMap<isize, T> = FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
-        let mut out2: FnvHashMap<isize, T> = FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
-        let mut out_final: FnvHashMap<isize, T> = FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
+        let mut out1: FnvHashMap<isize, T> =
+            FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
+        let mut out2: FnvHashMap<isize, T> =
+            FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
+        let mut out_final: FnvHashMap<isize, T> =
+            FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
 
         out2.insert(0, T::one());
 

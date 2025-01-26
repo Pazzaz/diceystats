@@ -1,4 +1,7 @@
-use std::{mem, ops::{AddAssign, MulAssign, SubAssign}};
+use std::{
+    mem,
+    ops::{AddAssign, MulAssign, SubAssign},
+};
 
 use num::{FromPrimitive, Num};
 
@@ -49,12 +52,8 @@ impl<T> WeirdDist<T> {
                 let end = ((i - lower) as usize).min(self.values.len() - 1);
                 let start = (self.values.len() - 1).saturating_sub((upper - i) as usize);
                 match self.values[start..=end].binary_search_by_key(&i, |x| x.0) {
-                    Ok(x) => {
-                        Ok(&mut self.values[start+x].1)
-                    },
-                    Err(u) => {
-                        Err(start+u)
-                    },
+                    Ok(x) => Ok(&mut self.values[start + x].1),
+                    Err(u) => Err(start + u),
                 }
             } else if i < lower {
                 Err(0)
@@ -79,10 +78,10 @@ impl<T> WeirdDist<T> {
                     Ok(x) => {
                         debug_assert!(self.values[x].0 == i);
                         self.values[x].1 = v;
-                    },
+                    }
                     Err(u) => {
                         self.values.insert(u, (i, v));
-                    },
+                    }
                 }
             } else if i < lower.0 {
                 self.values.insert(0, (i, v));
@@ -95,7 +94,8 @@ impl<T> WeirdDist<T> {
 
 impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd> DistTrait<'a, T> for WeirdDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T> {
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+{
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().map(|x| (x.0, &x.1))
     }
@@ -103,7 +103,7 @@ where
 
 impl<T: Num> WeirdDist<T>
 where
-    for<'a> T: MulAssign<&'a T>
+    for<'a> T: MulAssign<&'a T>,
 {
     fn mul_constant(&mut self, c: isize) {
         if c == 0 {
@@ -121,7 +121,8 @@ where
 
 pub(crate) struct WeirdDistEvaluator;
 
-impl<T: Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug> Evaluator<WeirdDist<T>> for WeirdDistEvaluator
+impl<T: Num + Clone + AddAssign + FromPrimitive + std::fmt::Debug> Evaluator<WeirdDist<T>>
+    for WeirdDistEvaluator
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
@@ -132,7 +133,7 @@ where
         for i in 1..=d {
             out.push((i as isize, T::one() / T::from_usize(d).unwrap()));
         }
-        let out = WeirdDist {values: out};
+        let out = WeirdDist { values: out };
         debug_assert!(out.correct());
         out
     }
@@ -140,7 +141,7 @@ where
     fn constant(&mut self, n: isize) -> WeirdDist<T> {
         let mut out = Vec::new();
         out.push((n, T::one()));
-        let out = WeirdDist {values: out};
+        let out = WeirdDist { values: out };
         debug_assert!(out.correct());
         out
     }
@@ -171,7 +172,7 @@ where
                         match out2.get_mut_or_insert(b_k + c_k) {
                             Ok(entry) => {
                                 *entry += tmp;
-                            },
+                            }
                             Err(x) => out2.values.insert(x, (b_k + c_k, tmp)),
                         }
                     }
@@ -184,7 +185,7 @@ where
                 match out_final.get_mut_or_insert(*c_k) {
                     Ok(entry) => {
                         *entry += tmp;
-                    },
+                    }
                     Err(x) => out_final.values.insert(x, (*c_k, tmp)),
                 }
             }
@@ -208,7 +209,7 @@ where
                 match out.get_mut_or_insert(a_k + b_k) {
                     Ok(entry) => {
                         *entry += tmp;
-                    },
+                    }
                     Err(x) => out.values.insert(x, (a_k + b_k, tmp)),
                 }
             }
@@ -233,7 +234,7 @@ where
                     match out.get_mut_or_insert(a_k * b_k) {
                         Ok(entry) => {
                             *entry += tmp;
-                        },
+                        }
                         Err(x) => out.values.insert(x, (a_k * b_k, tmp)),
                     }
                 }
@@ -252,7 +253,7 @@ where
                 match out.get_mut_or_insert(a_k - b_k) {
                     Ok(entry) => {
                         *entry += tmp;
-                    },
+                    }
                     Err(x) => out.values.insert(x, (a_k - b_k, tmp)),
                 }
             }
@@ -270,7 +271,7 @@ where
                 match out.get_mut_or_insert(*a_k.max(b_k)) {
                     Ok(entry) => {
                         *entry += tmp;
-                    },
+                    }
                     Err(x) => out.values.insert(x, (*a_k.max(b_k), tmp)),
                 }
             }
@@ -288,7 +289,7 @@ where
                 match out.get_mut_or_insert(*a_k.min(b_k)) {
                     Ok(entry) => {
                         *entry += tmp;
-                    },
+                    }
                     Err(x) => out.values.insert(x, (*a_k.min(b_k), tmp)),
                 }
             }
