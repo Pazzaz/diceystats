@@ -314,7 +314,8 @@ impl DiceFormula {
     /// expression.
     ///
     /// The function is generic over the number type used to represent
-    /// probabilities, and the distribution representation used (see [dist](crate::dist)).
+    /// probabilities, and the distribution representation used (see
+    /// [dist](crate::dist)).
     ///
     /// # Example
     ///
@@ -330,13 +331,7 @@ impl DiceFormula {
     /// let exact_dist: DenseDist<BigRational> = expr.dist();
     /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
     /// ```
-    pub fn dist<
-        'a,
-        T: 'a + Num + FromPrimitive + PartialOrd + Clone,
-        D: Dist<'a, T>,
-    >(
-        &self,
-    ) -> D
+    pub fn dist<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone, D: Dist<'a, T>>(&self) -> D
     where
         for<'b> T: MulAssign<&'b T> + AddAssign<&'b T> + SubAssign<&'b T>,
     {

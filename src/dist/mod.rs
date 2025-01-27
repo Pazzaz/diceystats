@@ -1,8 +1,8 @@
 //! Finite discrete probability distributions
 //!
 //! We have 3 different representations of distributions:
-//! - [`DenseDist`], uses a Vec to store probabilities, is slow when the distribution
-//!   is sparse, e.g. `d2*10000`.
+//! - [`DenseDist`], uses a Vec to store probabilities, is slow when the
+//!   distribution is sparse, e.g. `d2*10000`.
 //! - [`SparseDist`], uses a HashMap to store probabilites.
 //! - [`WeirdDist`]. uses a Vec to store probabilites, in a sparse way.
 
@@ -35,9 +35,12 @@ where
     fn min_value(&self) -> isize;
     fn max_value(&self) -> isize;
 
-    /// The chance of outcome `n`. Returns `None` if `n` is not part of `self`, which means its chance is 0.
+    /// The chance of outcome `n`. Returns `None` if `n` is not part of `self`,
+    /// which means its chance is 0.
     fn chance(&'a self, n: isize) -> Option<&'a T> {
-        self.iter_enumerate().take_while(|x| x.0 <= n).find_map(|x| if x.0 == n { Some(x.1) } else { None })
+        self.iter_enumerate()
+            .take_while(|x| x.0 <= n)
+            .find_map(|x| if x.0 == n { Some(x.1) } else { None })
     }
 
     /// The expected value of the distribution.

@@ -70,13 +70,12 @@ impl<T> WeirdDist<T> {
     fn insert(&mut self, i: isize, v: T) {
         match self.get_mut_or_insert(i) {
             Ok(x) => *x = v,
-            Err(x) =>  self.values.insert(x, (i, v)),
+            Err(x) => self.values.insert(x, (i, v)),
         }
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T>
-    for WeirdDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T> for WeirdDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {

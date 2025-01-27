@@ -60,7 +60,7 @@ where
 
 impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DenseDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
     /// Distance between two distributions, measured by total elementwise
     /// difference of probabilities.
@@ -181,7 +181,10 @@ where
     /// `None` if outside the distribution's support.
     ///
     /// ```
-    /// use diceystats::{DiceFormula, dist::{Dist, DenseDist}};
+    /// use diceystats::{
+    ///     DiceFormula,
+    ///     dist::{DenseDist, Dist},
+    /// };
     ///
     /// let expr: DiceFormula = "d10".parse().unwrap();
     /// let dist: DenseDist<f64> = expr.dist();
@@ -214,7 +217,7 @@ impl<T: Num + Clone> DenseDist<T> {
 
 impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DenseDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
     fn op_inplace<F: Fn(isize, isize) -> isize>(
         &mut self,
@@ -398,9 +401,10 @@ pub(crate) struct DistEvaluator<T> {
     pub(crate) buffer: Vec<T>,
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<DenseDist<T>> for DistEvaluator<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<DenseDist<T>>
+    for DistEvaluator<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
     const LOSSY: bool = false;
 

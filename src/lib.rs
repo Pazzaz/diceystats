@@ -9,7 +9,7 @@
 //! ```
 //! use diceystats::{
 //!     DiceFormula,
-//!     dist::{Dist, DenseDist},
+//!     dist::{DenseDist, Dist},
 //!     roll,
 //! };
 //! use num::BigRational;
@@ -34,9 +34,11 @@
 //! let dist: DenseDist<BigRational> = d4_d5_d6.dist();
 //! assert_eq!(dist.mean(), "77/4".parse().unwrap());
 //! ```
-//! 
-//! There are multiple ways to represent distributions which are useful in different situations, e.g. [SparseDist](dist::SparseDist) will attempt to only store non-zero values in the distribution's support.
-//! 
+//!
+//! There are multiple ways to represent distributions which are useful in
+//! different situations, e.g. [SparseDist](dist::SparseDist) will attempt to
+//! only store non-zero values in the distribution's support.
+//!
 //! ```
 //! # use diceystats::{
 //! #     DiceFormula,
