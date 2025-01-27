@@ -41,27 +41,6 @@ impl<T> Dist<T> {
         self.offset + (self.values.len() as isize) - 1
     }
 
-    /// Iterate through the distribution's support, with each outcomes
-    /// probability.
-    pub fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
-        self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
-    }
-
-    /// The chance that `n` will be sampled from the distribution. Returns
-    /// `None` if ouside the distribution's support.
-    ///
-    /// ```
-    /// use diceystats::{DiceFormula, dist::Dist};
-    ///
-    /// let expr: DiceFormula = "d10".parse().unwrap();
-    /// let dist: Dist<f64> = expr.dist();
-    /// let p = dist.chance(3).unwrap_or(&0.0);
-    /// assert_eq!(1.0 / 10.0, *p);
-    /// ```
-    pub fn chance(&self, n: isize) -> Option<&T> {
-        usize::try_from(n - self.offset).ok().and_then(|x| self.values.get(x))
-    }
-
     pub(crate) fn negate_inplace(&mut self) {
         self.offset = -self.max_value();
         self.values.reverse();
@@ -79,9 +58,9 @@ where
     }
 }
 
-impl<T: num::Zero + PartialOrd + Clone> Dist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<T>
 where
-    for<'a> T: AddAssign<&'a T> + SubAssign<&'a T>,
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
 {
     /// Distance between two distributions, measured by total elementwise
     /// difference of probabilities.
@@ -186,8 +165,31 @@ where
     fn evaluator() -> impl Evaluator<Self> {
         DistEvaluator { buffer: Vec::new() }
     }
+
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
+    }
+
+    fn min_value(&self) -> isize {
+        self.min_value()
+    }
+    fn max_value(&self) -> isize {
+        self.max_value()
+    }
+
+    /// The chance that `n` will be sampled from the distribution. Returns
+    /// `None` if outside the distribution's support.
+    ///
+    /// ```
+    /// use diceystats::{DiceFormula, dist::{Dist, DistTrait}};
+    ///
+    /// let expr: DiceFormula = "d10".parse().unwrap();
+    /// let dist: Dist<f64> = expr.dist();
+    /// let p = dist.chance(3).unwrap_or(&0.0);
+    /// assert_eq!(1.0 / 10.0, *p);
+    /// ```
+    fn chance(&self, n: isize) -> Option<&T> {
+        usize::try_from(n - self.offset).ok().and_then(|x| self.values.get(x))
     }
 }
 
@@ -210,9 +212,9 @@ impl<T: Num + Clone> Dist<T> {
     }
 }
 
-impl<T: Num + Clone + AddAssign> Dist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<T>
 where
-    for<'a> T: MulAssign<&'a T>,
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
 {
     fn op_inplace<F: Fn(isize, isize) -> isize>(
         &mut self,
@@ -396,9 +398,9 @@ pub(crate) struct DistEvaluator<T> {
     pub(crate) buffer: Vec<T>,
 }
 
-impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<Dist<T>> for DistEvaluator<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<Dist<T>> for DistEvaluator<T>
 where
-    for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
 {
     const LOSSY: bool = false;
 

@@ -4,11 +4,14 @@
 //! formulas, analayze the distribution of formulas, simplify formulas, randomly
 //! generate formulas, exhaustavely generate classes of formulas, etc.
 //!
-//! The main user facing types are [DiceFormula] and [Dist].
-//!
 //! # Usage
+//!
 //! ```
-//! use diceystats::{DiceFormula, dist::Dist, dist::DistTrait, roll};
+//! use diceystats::{
+//!     DiceFormula,
+//!     dist::{Dist, DistTrait},
+//!     roll,
+//! };
 //! use num::BigRational;
 //! use rand::thread_rng;
 //!
@@ -18,7 +21,7 @@
 //!
 //! // We can roll the dice and calculate the result
 //! let result = roll(example, &mut thread_rng()).unwrap();
-//! assert!(2 <= result && result <= 54);
+//! assert!((2..=54).contains(&result));
 //!
 //! // Or to do more advanced things we can parse it into a `DiceFormula`
 //! let d4_d5_d6: DiceFormula = example.parse().unwrap();
@@ -30,6 +33,19 @@
 //! // If we want to be more precise we can use arbitrary precision numbers
 //! let dist: Dist<BigRational> = d4_d5_d6.dist();
 //! assert_eq!(dist.mean(), "77/4".parse().unwrap());
+//! ```
+//! 
+//! There are multiple ways to represent distributions which are useful in different situations, e.g. [SparseDist](dist::SparseDist) will attempt to only store non-zero values in the distribution's support.
+//! 
+//! ```
+//! # use diceystats::{
+//! #     DiceFormula,
+//! #     dist::{Dist, DistTrait},
+//! # };
+//! # use num::BigRational;
+//! # let d4_d5_d6: DiceFormula = "(d4 + d5)xd6".parse().unwrap();
+//! use diceystats::dist::SparseDist;
+//! let sparse_dist: SparseDist<BigRational> = d4_d5_d6.dist();
 //! ```
 //!
 //! The library also supports "negative dice", but the library will fail if
@@ -43,11 +59,11 @@
 //! ```
 //!
 //! # Performance
-//! An attempt has been made to make the program reasonably fast, though
-//! the use of generics makes low level optimisations less feasable.
-//! The probability distributions used are also not very optimized for sparse
-//! distributions. An expression such as `100000 * d2`, despite only having two
-//! possible outcomes, would store many zero probability outcomes.
+//! An attempt has been made to make the library reasonably fast, though
+//! the use of generics makes low level optimisations hard. Calculating
+//! probability distributions, the most expensive operation, can be done in
+//! multiple ways with different performance implications. See [dist] for more
+//! information.
 
 #![feature(test)]
 

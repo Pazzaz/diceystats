@@ -40,7 +40,7 @@ impl<T> WeirdDist<T> {
         self.values.last().unwrap().0
     }
 
-    fn get_mut_or_insert(&mut self, i: isize) -> Result<&mut T, usize> {
+    fn get_index(&self, i: isize) -> Result<usize, usize> {
         if self.values.is_empty() {
             Err(0)
         } else {
@@ -52,7 +52,7 @@ impl<T> WeirdDist<T> {
                 let end = ((i - lower) as usize).min(self.values.len() - 1);
                 let start = (self.values.len() - 1).saturating_sub((upper - i) as usize);
                 match self.values[start..=end].binary_search_by_key(&i, |x| x.0) {
-                    Ok(x) => Ok(&mut self.values[start + x].1),
+                    Ok(x) => Ok(start + x),
                     Err(u) => Err(start + u),
                 }
             } else if i < lower {
@@ -63,38 +63,22 @@ impl<T> WeirdDist<T> {
         }
     }
 
+    fn get_mut_or_insert(&mut self, i: isize) -> Result<&mut T, usize> {
+        self.get_index(i).map(|x| &mut self.values[x].1)
+    }
+
     fn insert(&mut self, i: isize, v: T) {
-        if self.values.len() == 0 {
-            self.values.push((i, v));
-        } else {
-            let lower = &self.values[0];
-            let upper = self.values.last().unwrap();
-            if i > upper.0 {
-                self.values.push((i, v));
-            } else if lower.0 <= i && i <= upper.0 {
-                let end = ((i - lower.0) as usize).min(self.values.len() - 1);
-                let start = (self.values.len() - 1).saturating_sub((upper.0 - i) as usize);
-                match self.values[start..=end].binary_search_by_key(&i, |x| x.0) {
-                    Ok(x) => {
-                        debug_assert!(self.values[x].0 == i);
-                        self.values[x].1 = v;
-                    }
-                    Err(u) => {
-                        self.values.insert(u, (i, v));
-                    }
-                }
-            } else if i < lower.0 {
-                self.values.insert(0, (i, v));
-            } else {
-                unreachable!()
-            }
+        match self.get_mut_or_insert(i) {
+            Ok(x) => *x = v,
+            Err(x) =>  self.values.insert(x, (i, v)),
         }
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T> for WeirdDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T>
+    for WeirdDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
     fn evaluator() -> impl Evaluator<Self> {
         WeirdDistEvaluator {}
@@ -102,6 +86,18 @@ where
 
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().map(|x| (x.0, &x.1))
+    }
+
+    fn min_value(&self) -> isize {
+        self.min_value()
+    }
+
+    fn max_value(&self) -> isize {
+        self.max_value()
+    }
+
+    fn chance(&'a self, n: isize) -> Option<&'a T> {
+        self.get_index(n).map(|x| &self.values[x].1).ok()
     }
 }
 
@@ -125,8 +121,7 @@ where
 
 pub(crate) struct WeirdDistEvaluator;
 
-impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<WeirdDist<T>>
-    for WeirdDistEvaluator
+impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<WeirdDist<T>> for WeirdDistEvaluator
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {

@@ -15,7 +15,8 @@ pub struct SparseDist<T> {
     values: FnvHashMap<isize, T>,
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T> for SparseDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T>
+    for SparseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
@@ -27,12 +28,23 @@ where
         values.sort_by_key(|x| x.0);
         values.into_iter()
     }
+
+    fn min_value(&self) -> isize {
+        *self.values.keys().min().unwrap()
+    }
+
+    fn max_value(&self) -> isize {
+        *self.values.keys().max().unwrap()
+    }
+
+    fn chance(&'a self, n: isize) -> Option<&'a T> {
+        self.values.get(&n)
+    }
 }
 
 pub(crate) struct SparseDistEvaluator;
 
-impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<SparseDist<T>>
-    for SparseDistEvaluator
+impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<SparseDist<T>> for SparseDistEvaluator
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {

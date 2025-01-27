@@ -5,9 +5,7 @@ use rand::Rng;
 use random::random_formula;
 use simplify::Simplifier;
 
-use crate::dist::{
-    Dist, DistEvaluator, DistTrait, SparseDist, SparseDistEvaluator, WeirdDist, WeirdDistEvaluator
-};
+use crate::dist::{Dist, DistTrait};
 
 pub mod list;
 pub mod parse;
@@ -316,12 +314,15 @@ impl DiceFormula {
     /// expression.
     ///
     /// The function is generic over the number type used to represent
-    /// probabilities.
+    /// probabilities, and the distribution representation used (see [dist](crate::dist)).
     ///
     /// # Example
     ///
     /// ```
-    /// use diceystats::{DiceFormula, dist::Dist, dist::DistTrait};
+    /// use diceystats::{
+    ///     DiceFormula,
+    ///     dist::{Dist, DistTrait},
+    /// };
     /// use num::BigRational;
     ///
     /// let expr: DiceFormula = "d10 * d4".parse().unwrap();
@@ -329,7 +330,13 @@ impl DiceFormula {
     /// let exact_dist: Dist<BigRational> = expr.dist();
     /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
     /// ```
-    pub fn dist<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone + PartialOrd, D: DistTrait<'a, T>>(&self) -> D
+    pub fn dist<
+        'a,
+        T: 'a + Num + FromPrimitive + PartialOrd + Clone,
+        D: DistTrait<'a, T>,
+    >(
+        &self,
+    ) -> D
     where
         for<'b> T: MulAssign<&'b T> + AddAssign<&'b T> + SubAssign<&'b T>,
     {
