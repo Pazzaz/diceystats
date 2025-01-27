@@ -83,7 +83,7 @@ mod tests {
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 
-    use crate::dist::DenseDist;
+    use crate::dist::{DenseDist, Dist};
 
     use super::*;
     extern crate test;

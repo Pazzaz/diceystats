@@ -6,7 +6,10 @@
 //! - [`SparseDist`], uses a HashMap to store probabilites.
 //! - [`WeirdDist`]. uses a Vec to store probabilites, in a sparse way.
 
-use std::ops::{AddAssign, MulAssign, SubAssign};
+use std::{
+    cmp::Ordering,
+    ops::{AddAssign, MulAssign, SubAssign},
+};
 
 use num::{FromPrimitive, Num};
 
@@ -22,7 +25,7 @@ use crate::dices::Evaluator;
 #[cfg(test)]
 pub mod tests;
 
-pub trait Dist<'a, T: 'a + Num + FromPrimitive + PartialOrd>
+pub trait Dist<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
     Self: Sized,
@@ -98,5 +101,75 @@ where
             }
         }
         out
+    }
+
+    fn distance(&'a self, other: &'a Self) -> T {
+        let mut iter_a = self.iter_enumerate();
+        let mut iter_b = other.iter_enumerate();
+        let mut total: T = T::zero();
+        let mut tmp: T = T::zero();
+        'outer: loop {
+            let mut current_a = iter_a.next();
+            let mut current_b = iter_b.next();
+            let (next_a, next_b) = loop {
+                match (current_a, current_b) {
+                    (None, _) | (_, None) => break 'outer,
+                    (Some(a), Some(b)) => match a.0.cmp(&b.0) {
+                        Ordering::Equal => break (a.1, b.1),
+                        Ordering::Less => current_a = iter_a.next(),
+                        Ordering::Greater => current_b = iter_b.next(),
+                    },
+                }
+            };
+            if next_a == next_b {
+                continue;
+            }
+            tmp.set_zero();
+            if next_a > next_b {
+                tmp += &next_a;
+                tmp -= &next_b;
+            } else {
+                tmp += &next_b;
+                tmp -= &next_a;
+            }
+            total += &tmp;
+        }
+        total
+    }
+
+    fn distance_max(&'a self, other: &'a Self) -> T {
+        let mut iter_a = self.iter_enumerate();
+        let mut iter_b = other.iter_enumerate();
+        let mut max: T = T::zero();
+        let mut tmp: T = T::zero();
+        'outer: loop {
+            let mut current_a = iter_a.next();
+            let mut current_b = iter_b.next();
+            let (next_a, next_b) = loop {
+                match (current_a, current_b) {
+                    (None, _) | (_, None) => break 'outer,
+                    (Some(a), Some(b)) => match a.0.cmp(&b.0) {
+                        Ordering::Equal => break (a.1, b.1),
+                        Ordering::Less => current_a = iter_a.next(),
+                        Ordering::Greater => current_b = iter_b.next(),
+                    },
+                }
+            };
+            if next_a == next_b {
+                continue;
+            }
+            tmp.set_zero();
+            if next_a > next_b {
+                tmp += &next_a;
+                tmp -= &next_b;
+            } else {
+                tmp += &next_b;
+                tmp -= &next_a;
+            }
+            if tmp > max {
+                max = tmp.clone();
+            }
+        }
+        max
     }
 }

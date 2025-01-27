@@ -58,15 +58,51 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DenseDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T> for DenseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
+    fn evaluator() -> impl Evaluator<Self> {
+        DistEvaluator { buffer: Vec::new() }
+    }
+
+    fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+        self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
+    }
+
+    fn min_value(&self) -> isize {
+        self.min_value()
+    }
+    fn max_value(&self) -> isize {
+        self.max_value()
+    }
+
+    /// The chance that `n` will be sampled from the distribution. Returns
+    /// `None` if outside the distribution's support.
+    ///
+    /// ```
+    /// use diceystats::{
+    ///     DiceFormula,
+    ///     dist::{DenseDist, Dist},
+    /// };
+    ///
+    /// let expr: DiceFormula = "d10".parse().unwrap();
+    /// let dist: DenseDist<f64> = expr.dist();
+    /// let p = dist.chance(3).unwrap_or(&0.0);
+    /// assert_eq!(1.0 / 10.0, *p);
+    /// ```
+    fn chance(&self, n: isize) -> Option<&T> {
+        usize::try_from(n - self.offset).ok().and_then(|x| self.values.get(x))
+    }
+
     /// Distance between two distributions, measured by total elementwise
     /// difference of probabilities.
     ///
     /// ```
-    /// use diceystats::{DiceFormula, dist::DenseDist};
+    /// use diceystats::{
+    ///     DiceFormula,
+    ///     dist::{DenseDist, Dist},
+    /// };
     /// use num::BigRational;
     ///
     /// let expr1: DenseDist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
@@ -74,7 +110,7 @@ where
     /// let d: BigRational = expr1.distance(&expr2);
     /// assert_eq!(d, "25/54".parse().unwrap())
     /// ```
-    pub fn distance(&self, other: &DenseDist<T>) -> T {
+    fn distance(&self, other: &DenseDist<T>) -> T {
         let mut d = T::zero();
         let a = self.min_value().min(other.min_value());
         let b = self.max_value().max(other.max_value());
@@ -109,7 +145,10 @@ where
     /// difference of probabilities
     ///
     /// ```
-    /// use diceystats::{DiceFormula, dist::DenseDist};
+    /// use diceystats::{
+    ///     DiceFormula,
+    ///     dist::{DenseDist, Dist},
+    /// };
     /// use num::BigRational;
     ///
     /// let expr1: DenseDist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
@@ -117,7 +156,7 @@ where
     /// let d: BigRational = expr1.distance_max(&expr2);
     /// assert_eq!(d, "1/12".parse().unwrap())
     /// ```
-    pub fn distance_max(&self, other: &DenseDist<T>) -> T {
+    fn distance_max(&self, other: &DenseDist<T>) -> T {
         let mut d: T = T::zero();
         let a = self.min_value().min(other.min_value());
         let b = self.max_value().max(other.max_value());
@@ -155,44 +194,6 @@ where
             }
         }
         d.clone()
-    }
-}
-
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T> for DenseDist<T>
-where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
-{
-    fn evaluator() -> impl Evaluator<Self> {
-        DistEvaluator { buffer: Vec::new() }
-    }
-
-    fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
-        self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
-    }
-
-    fn min_value(&self) -> isize {
-        self.min_value()
-    }
-    fn max_value(&self) -> isize {
-        self.max_value()
-    }
-
-    /// The chance that `n` will be sampled from the distribution. Returns
-    /// `None` if outside the distribution's support.
-    ///
-    /// ```
-    /// use diceystats::{
-    ///     DiceFormula,
-    ///     dist::{DenseDist, Dist},
-    /// };
-    ///
-    /// let expr: DiceFormula = "d10".parse().unwrap();
-    /// let dist: DenseDist<f64> = expr.dist();
-    /// let p = dist.chance(3).unwrap_or(&0.0);
-    /// assert_eq!(1.0 / 10.0, *p);
-    /// ```
-    fn chance(&self, n: isize) -> Option<&T> {
-        usize::try_from(n - self.offset).ok().and_then(|x| self.values.get(x))
     }
 }
 

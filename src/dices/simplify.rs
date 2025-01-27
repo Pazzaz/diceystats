@@ -118,7 +118,7 @@ impl Evaluator<DiceFormula> for Simplifier {
 
 #[cfg(test)]
 mod tests {
-    use crate::dist::DenseDist;
+    use crate::dist::{DenseDist, Dist};
 
     use super::*;
     extern crate test;
