@@ -9,6 +9,7 @@ use crate::dices::Evaluator;
 
 use super::Dist;
 
+/// A discrete distribution of outcomes, stored sparsely in a [`Vec`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WeirdDist<T> {
     values: Vec<(isize, T)>,
@@ -26,10 +27,6 @@ impl<T> WeirdDist<T> {
 
     fn new() -> Self {
         WeirdDist { values: Vec::new() }
-    }
-
-    fn iter(&self) -> impl Iterator<Item = &(isize, T)> {
-        self.values.iter()
     }
 
     fn min_value(&self) -> isize {
@@ -98,6 +95,26 @@ where
     fn chance(&'a self, n: isize) -> Option<&'a T> {
         self.get_index(n).map(|x| &self.values[x].1).ok()
     }
+
+    fn new_uniform(min: isize, max: isize) -> Self {
+        debug_assert!(min <= max);
+        let values = (max - min + 1) as usize;
+        let mut out = Vec::with_capacity(values);
+        for i in min..=max {
+            out.push((i as isize, T::one() / T::from_usize(values).unwrap()));
+        }
+        let out = WeirdDist { values: out };
+        debug_assert!(out.correct());
+        out
+    }
+
+    fn new_constant(n: isize) -> Self {
+        let mut out = Vec::with_capacity(1);
+        out.push((n, T::one()));
+        let out = WeirdDist { values: out };
+        debug_assert!(out.correct());
+        out
+    }
 }
 
 impl<T: Num> WeirdDist<T>
@@ -120,28 +137,19 @@ where
 
 pub(crate) struct WeirdDistEvaluator;
 
-impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<WeirdDist<T>> for WeirdDistEvaluator
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<WeirdDist<T>>
+    for WeirdDistEvaluator
 where
-    for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
     const LOSSY: bool = false;
 
     fn dice(&mut self, d: usize) -> WeirdDist<T> {
-        let mut out = Vec::new();
-        for i in 1..=d {
-            out.push((i as isize, T::one() / T::from_usize(d).unwrap()));
-        }
-        let out = WeirdDist { values: out };
-        debug_assert!(out.correct());
-        out
+        WeirdDist::new_uniform(1, d as isize)
     }
 
     fn constant(&mut self, n: isize) -> WeirdDist<T> {
-        let mut out = Vec::new();
-        out.push((n, T::one()));
-        let out = WeirdDist { values: out };
-        debug_assert!(out.correct());
-        out
+        WeirdDist::new_constant(n)
     }
 
     fn multi_add_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {

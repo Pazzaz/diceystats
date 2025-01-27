@@ -1,10 +1,11 @@
 //! Finite discrete probability distributions
 //!
 //! We have 3 different representations of distributions:
-//! - [`DenseDist`], uses a Vec to store probabilities, is slow when the
+//! - [`DenseDist`], uses a [`Vec`] to store probabilities, can be slow when the
 //!   distribution is sparse, e.g. `d2*10000`.
-//! - [`SparseDist`], uses a HashMap to store probabilites.
-//! - [`WeirdDist`]. uses a Vec to store probabilites, in a sparse way.
+//! - [`SparseDist`], uses a [`HashMap`](std::collections::HashMap) to store
+//!   probabilites.
+//! - [`WeirdDist`]. uses a [`Vec`] to store probabilites, in a sparse way.
 
 use std::{
     cmp::Ordering,
@@ -30,6 +31,9 @@ where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
     Self: Sized,
 {
+    fn new_uniform(min: isize, max: isize) -> Self;
+    fn new_constant(n: isize) -> Self;
+
     fn evaluator() -> impl Evaluator<Self>;
 
     /// Iteratete through the distribution's support, in order.

@@ -62,9 +62,11 @@ struct SampleEvaluator<'a, R: Rng + ?Sized> {
 
 impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
     const LOSSY: bool = true;
+
     fn to_usize(x: isize) -> usize {
         x.try_into().unwrap_or_else(|_| panic!("Can't roll negative amount of dice"))
     }
+
     fn dice(&mut self, d: usize) -> isize {
         (self.rng.gen_range(1..=d)) as isize
     }

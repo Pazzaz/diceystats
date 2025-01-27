@@ -15,7 +15,7 @@ use crate::dices::Evaluator;
 
 use super::Dist;
 
-/// A discrete distribution of outcomes.
+/// A discrete distribution of outcomes, stored densely in a [`Vec`].
 ///
 /// Probabilities have type `T`, e.g. [`f32`], [`f64`], `BigRational` etc.
 /// All distributions have finite support, represented by a [`Vec<T>`].
@@ -29,21 +29,6 @@ impl<T> DenseDist<T> {
     #[must_use]
     pub fn map<U, F: Fn(&T) -> U>(&self, f: F) -> DenseDist<U> {
         DenseDist { values: self.values.iter().map(f).collect(), offset: self.offset }
-    }
-
-    /// The minimum value in the distribution's support.
-    pub fn min_value(&self) -> isize {
-        self.offset
-    }
-
-    /// The maximum value in the distribution's support.
-    pub fn max_value(&self) -> isize {
-        self.offset + (self.values.len() as isize) - 1
-    }
-
-    pub(crate) fn negate_inplace(&mut self) {
-        self.offset = -self.max_value();
-        self.values.reverse();
     }
 }
 
@@ -66,15 +51,21 @@ where
         DistEvaluator { buffer: Vec::new() }
     }
 
+    fn new_constant(n: isize) -> Self {
+        let values = vec![T::one()];
+        DenseDist { values, offset: n }
+    }
+
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
     }
 
     fn min_value(&self) -> isize {
-        self.min_value()
+        self.offset
     }
+
     fn max_value(&self) -> isize {
-        self.max_value()
+        self.offset + (self.values.len() as isize) - 1
     }
 
     /// The chance that `n` will be sampled from the distribution. Returns
@@ -195,24 +186,14 @@ where
         }
         d.clone()
     }
-}
 
-impl<T: Num + FromPrimitive> DenseDist<T> {
-    pub(crate) fn uniform(min: isize, max: isize) -> Self {
+    fn new_uniform(min: isize, max: isize) -> Self {
         debug_assert!(min <= max);
         let choices = (max - min + 1) as usize;
         DenseDist {
             values: (min..=max).map(|_| T::one() / T::from_usize(choices).unwrap()).collect(),
             offset: min,
         }
-    }
-}
-
-impl<T: Num + Clone> DenseDist<T> {
-    pub(crate) fn constant(n: isize) -> Self {
-        let values = vec![T::one()];
-
-        DenseDist { values, offset: n }
     }
 }
 
@@ -269,12 +250,12 @@ where
     pub(crate) fn min_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::min);
     }
-}
 
-impl<T: Num + Clone + AddAssign> DenseDist<T>
-where
-    for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
-{
+    pub(crate) fn negate_inplace(&mut self) {
+        self.offset = -self.max_value();
+        self.values.reverse();
+    }
+
     pub(crate) fn multi_add_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.is_empty());
         debug_assert!(0 <= self.offset);
@@ -295,7 +276,7 @@ where
             .max(self.max_value() * other.max_value());
 
         if max_value == min_value {
-            *self = DenseDist::constant(max_value);
+            *self = DenseDist::new_constant(max_value);
             return;
         }
 
@@ -410,11 +391,11 @@ where
     const LOSSY: bool = false;
 
     fn dice(&mut self, d: usize) -> DenseDist<T> {
-        DenseDist::uniform(1, d as isize)
+        DenseDist::new_uniform(1, d as isize)
     }
 
     fn constant(&mut self, n: isize) -> DenseDist<T> {
-        DenseDist::constant(n)
+        DenseDist::new_constant(n)
     }
 
     fn multi_add_inplace(&mut self, a: &mut DenseDist<T>, b: &DenseDist<T>) {

@@ -10,6 +10,8 @@ use crate::dices::Evaluator;
 
 use super::Dist;
 
+/// A discrete distribution of outcomes, stored sparsely in a
+/// [`HashMap`](std::collections::HashMap).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseDist<T> {
     values: FnvHashMap<isize, T>,
@@ -22,6 +24,7 @@ where
     fn evaluator() -> impl Evaluator<Self> {
         SparseDistEvaluator {}
     }
+
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
         let mut values: Vec<(isize, &T)> = self.values.iter().map(|x| (*x.0, x.1)).collect();
         values.sort_by_key(|x| x.0);
@@ -39,28 +42,38 @@ where
     fn chance(&'a self, n: isize) -> Option<&'a T> {
         self.values.get(&n)
     }
-}
 
-pub(crate) struct SparseDistEvaluator;
-
-impl<T: Num + Clone + AddAssign + FromPrimitive> Evaluator<SparseDist<T>> for SparseDistEvaluator
-where
-    for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
-{
-    const LOSSY: bool = false;
-
-    fn dice(&mut self, d: usize) -> SparseDist<T> {
-        let mut out = FnvHashMap::with_capacity_and_hasher(d, Default::default());
-        for i in 1..=d {
-            out.insert(i as isize, T::one() / T::from_usize(d).unwrap());
+    fn new_uniform(min: isize, max: isize) -> Self {
+        debug_assert!(min <= max);
+        let values = (max - min + 1) as usize;
+        let mut out = FnvHashMap::with_capacity_and_hasher(values, Default::default());
+        for i in min..=max {
+            out.insert(i as isize, T::one() / T::from_usize(values).unwrap());
         }
         SparseDist { values: out }
     }
 
-    fn constant(&mut self, n: isize) -> SparseDist<T> {
+    fn new_constant(n: isize) -> Self {
         let mut out = FnvHashMap::with_capacity_and_hasher(1, Default::default());
         out.insert(n, T::one());
         SparseDist { values: out }
+    }
+}
+
+pub(crate) struct SparseDistEvaluator;
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<SparseDist<T>>
+    for SparseDistEvaluator
+where
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+{
+    const LOSSY: bool = false;
+
+    fn dice(&mut self, d: usize) -> SparseDist<T> {
+        SparseDist::new_uniform(1, d as isize)
+    }
+
+    fn constant(&mut self, n: isize) -> SparseDist<T> {
+        SparseDist::new_constant(n)
     }
 
     fn multi_add_inplace(&mut self, a: &mut SparseDist<T>, b: &SparseDist<T>) {
