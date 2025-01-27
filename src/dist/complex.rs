@@ -7,7 +7,7 @@ use num::{FromPrimitive, Num};
 
 use crate::dices::Evaluator;
 
-use super::DistTrait;
+use super::Dist;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WeirdDist<T> {
@@ -75,7 +75,7 @@ impl<T> WeirdDist<T> {
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T>
     for WeirdDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,

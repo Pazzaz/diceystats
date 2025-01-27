@@ -83,7 +83,7 @@ mod tests {
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 
-    use crate::dist::Dist;
+    use crate::dist::DenseDist;
 
     use super::*;
     extern crate test;
@@ -119,8 +119,8 @@ mod tests {
             // being formatted and parsed into a new expression.
             let a = DiceFormula::random(&mut rng, 2, 10);
             let a_formatted = DiceFormula::from_str(&a.to_string()).unwrap();
-            let dist: Dist<f64> = a.dist();
-            let dist_formatted: Dist<f64> = a_formatted.dist();
+            let dist: DenseDist<f64> = a.dist();
+            let dist_formatted: DenseDist<f64> = a_formatted.dist();
             assert!(dist.distance(&dist_formatted) <= 0.01, "{a} = {a_formatted}");
         }
     }

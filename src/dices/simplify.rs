@@ -118,7 +118,7 @@ impl Evaluator<DiceFormula> for Simplifier {
 
 #[cfg(test)]
 mod tests {
-    use crate::dist::Dist;
+    use crate::dist::DenseDist;
 
     use super::*;
     extern crate test;
@@ -133,8 +133,8 @@ mod tests {
             // distribution is the same after being simplified.
             let a = DiceFormula::random(&mut rng, 2, 10);
             let a_simple = a.simplified();
-            let dist: Dist<f64> = a.dist();
-            let simple_dist: Dist<f64> = a_simple.dist();
+            let dist: DenseDist<f64> = a.dist();
+            let simple_dist: DenseDist<f64> = a_simple.dist();
             assert!(dist.distance(&simple_dist) <= 0.01, "{a} = {a_simple}");
         }
     }

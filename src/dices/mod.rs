@@ -5,7 +5,7 @@ use rand::Rng;
 use random::random_formula;
 use simplify::Simplifier;
 
-use crate::dist::{Dist, DistTrait};
+use crate::dist::{DenseDist, Dist};
 
 pub mod list;
 pub mod parse;
@@ -321,19 +321,19 @@ impl DiceFormula {
     /// ```
     /// use diceystats::{
     ///     DiceFormula,
-    ///     dist::{Dist, DistTrait},
+    ///     dist::{DenseDist, Dist},
     /// };
     /// use num::BigRational;
     ///
     /// let expr: DiceFormula = "d10 * d4".parse().unwrap();
-    /// let fast_dist: Dist<f64> = expr.dist();
-    /// let exact_dist: Dist<BigRational> = expr.dist();
+    /// let fast_dist: DenseDist<f64> = expr.dist();
+    /// let exact_dist: DenseDist<BigRational> = expr.dist();
     /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
     /// ```
     pub fn dist<
         'a,
         T: 'a + Num + FromPrimitive + PartialOrd + Clone,
-        D: DistTrait<'a, T>,
+        D: Dist<'a, T>,
     >(
         &self,
     ) -> D

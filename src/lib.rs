@@ -9,7 +9,7 @@
 //! ```
 //! use diceystats::{
 //!     DiceFormula,
-//!     dist::{Dist, DistTrait},
+//!     dist::{Dist, DenseDist},
 //!     roll,
 //! };
 //! use num::BigRational;
@@ -27,11 +27,11 @@
 //! let d4_d5_d6: DiceFormula = example.parse().unwrap();
 //!
 //! // Then we can calculate its probability distribution
-//! let dist: Dist<f64> = d4_d5_d6.dist();
+//! let dist: DenseDist<f64> = d4_d5_d6.dist();
 //! assert!((dist.mean() - 19.25).abs() <= 0.01);
 //!
 //! // If we want to be more precise we can use arbitrary precision numbers
-//! let dist: Dist<BigRational> = d4_d5_d6.dist();
+//! let dist: DenseDist<BigRational> = d4_d5_d6.dist();
 //! assert_eq!(dist.mean(), "77/4".parse().unwrap());
 //! ```
 //! 
@@ -40,11 +40,12 @@
 //! ```
 //! # use diceystats::{
 //! #     DiceFormula,
-//! #     dist::{Dist, DistTrait},
+//! #     dist::{Dist, DenseDist},
 //! # };
 //! # use num::BigRational;
 //! # let d4_d5_d6: DiceFormula = "(d4 + d5)xd6".parse().unwrap();
 //! use diceystats::dist::SparseDist;
+//!
 //! let sparse_dist: SparseDist<BigRational> = d4_d5_d6.dist();
 //! ```
 //!

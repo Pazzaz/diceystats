@@ -1,7 +1,7 @@
 //! Exhaustive search of dice expressions
 
 use super::DiceFormula;
-use crate::dices::{Bounds, Dist, Evaluator};
+use crate::dices::{Bounds, DenseDist, Evaluator};
 use num::BigRational;
 use std::{
     collections::HashMap,
@@ -39,20 +39,20 @@ impl<'a> Default for ConfigEveryTree<'a> {
 /// [`ConfigEveryTree`].
 pub fn every_tree(
     &ConfigEveryTree { height, dice, constants, bounds, print_progress }: &ConfigEveryTree,
-) -> Vec<(Dist<BigRational>, DiceFormula)> {
-    let mut expressions: HashMap<Dist<BigRational>, DiceFormula> = HashMap::default();
+) -> Vec<(DenseDist<BigRational>, DiceFormula)> {
+    let mut expressions: HashMap<DenseDist<BigRational>, DiceFormula> = HashMap::default();
     for &i in dice {
         let d = DiceFormula::dice(i);
-        let d_dist: Dist<BigRational> = d.dist();
+        let d_dist: DenseDist<BigRational> = d.dist();
         expressions.entry(d_dist).or_insert(d);
     }
     for &i in constants {
         let c = DiceFormula::constant(i);
-        let c_dist: Dist<BigRational> = c.dist();
+        let c_dist: DenseDist<BigRational> = c.dist();
         expressions.entry(c_dist).or_insert(c);
     }
     for i in 0..height {
-        let mut sorted: Vec<(DiceFormula, (isize, isize), Dist<BigRational>)> = expressions
+        let mut sorted: Vec<(DiceFormula, (isize, isize), DenseDist<BigRational>)> = expressions
             .drain()
             .map(|x| {
                 let bounds = x.1.bounds();
@@ -68,7 +68,7 @@ pub fn every_tree(
                 Bounds::$f1(&mut s, &mut c_bounds, $b_bounds);
                 if i < (height - 1) || (bounds.0 <= c_bounds.0 && c_bounds.1 <= bounds.1) {
                     let mut c_dist = $a_dist.clone();
-                    Dist::$f1(&mut c_dist, $b_dist, &mut buffer);
+                    DenseDist::$f1(&mut c_dist, $b_dist, &mut buffer);
                     expressions
                         .entry(c_dist)
                         .or_insert_with(|| DiceFormula::$f3($a.clone(), $b).simplified());

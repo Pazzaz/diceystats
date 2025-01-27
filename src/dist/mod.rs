@@ -1,7 +1,7 @@
 //! Finite discrete probability distributions
 //!
 //! We have 3 different representations of distributions:
-//! - [`Dist`], uses a Vec to store probabilities, is slow when the distribution
+//! - [`DenseDist`], uses a Vec to store probabilities, is slow when the distribution
 //!   is sparse, e.g. `d2*10000`.
 //! - [`SparseDist`], uses a HashMap to store probabilites.
 //! - [`WeirdDist`]. uses a Vec to store probabilites, in a sparse way.
@@ -14,18 +14,15 @@ mod complex;
 mod dense;
 mod sparse;
 pub use complex::WeirdDist;
-pub(crate) use complex::WeirdDistEvaluator;
-pub use dense::Dist;
-pub(crate) use dense::DistEvaluator;
+pub use dense::DenseDist;
 pub use sparse::SparseDist;
-pub(crate) use sparse::SparseDistEvaluator;
 
 use crate::dices::Evaluator;
 
 #[cfg(test)]
 pub mod tests;
 
-pub trait DistTrait<'a, T: 'a + Num + FromPrimitive + PartialOrd>
+pub trait Dist<'a, T: 'a + Num + FromPrimitive + PartialOrd>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
     Self: Sized,

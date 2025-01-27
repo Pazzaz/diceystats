@@ -13,22 +13,22 @@ use rand::{
 
 use crate::dices::Evaluator;
 
-use super::DistTrait;
+use super::Dist;
 
 /// A discrete distribution of outcomes.
 ///
 /// Probabilities have type `T`, e.g. [`f32`], [`f64`], `BigRational` etc.
 /// All distributions have finite support, represented by a [`Vec<T>`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Dist<T> {
+pub struct DenseDist<T> {
     values: Vec<T>,
     offset: isize,
 }
 
-impl<T> Dist<T> {
+impl<T> DenseDist<T> {
     #[must_use]
-    pub fn map<U, F: Fn(&T) -> U>(&self, f: F) -> Dist<U> {
-        Dist { values: self.values.iter().map(f).collect(), offset: self.offset }
+    pub fn map<U, F: Fn(&T) -> U>(&self, f: F) -> DenseDist<U> {
+        DenseDist { values: self.values.iter().map(f).collect(), offset: self.offset }
     }
 
     /// The minimum value in the distribution's support.
@@ -47,7 +47,7 @@ impl<T> Dist<T> {
     }
 }
 
-impl<T: SampleUniform + PartialOrd + Clone + Default> Dist<T>
+impl<T: SampleUniform + PartialOrd + Clone + Default> DenseDist<T>
 where
     for<'a> T: AddAssign<&'a T>,
 {
@@ -58,7 +58,7 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DenseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
 {
@@ -66,15 +66,15 @@ where
     /// difference of probabilities.
     ///
     /// ```
-    /// use diceystats::{DiceFormula, dist::Dist};
+    /// use diceystats::{DiceFormula, dist::DenseDist};
     /// use num::BigRational;
     ///
-    /// let expr1: Dist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
-    /// let expr2: Dist<_> = "d4+d6".parse::<DiceFormula>().unwrap().dist();
+    /// let expr1: DenseDist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
+    /// let expr2: DenseDist<_> = "d4+d6".parse::<DiceFormula>().unwrap().dist();
     /// let d: BigRational = expr1.distance(&expr2);
     /// assert_eq!(d, "25/54".parse().unwrap())
     /// ```
-    pub fn distance(&self, other: &Dist<T>) -> T {
+    pub fn distance(&self, other: &DenseDist<T>) -> T {
         let mut d = T::zero();
         let a = self.min_value().min(other.min_value());
         let b = self.max_value().max(other.max_value());
@@ -109,15 +109,15 @@ where
     /// difference of probabilities
     ///
     /// ```
-    /// use diceystats::{DiceFormula, dist::Dist};
+    /// use diceystats::{DiceFormula, dist::DenseDist};
     /// use num::BigRational;
     ///
-    /// let expr1: Dist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
-    /// let expr2: Dist<_> = "d4+d6".parse::<DiceFormula>().unwrap().dist();
+    /// let expr1: DenseDist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
+    /// let expr2: DenseDist<_> = "d4+d6".parse::<DiceFormula>().unwrap().dist();
     /// let d: BigRational = expr1.distance_max(&expr2);
     /// assert_eq!(d, "1/12".parse().unwrap())
     /// ```
-    pub fn distance_max(&self, other: &Dist<T>) -> T {
+    pub fn distance_max(&self, other: &DenseDist<T>) -> T {
         let mut d: T = T::zero();
         let a = self.min_value().min(other.min_value());
         let b = self.max_value().max(other.max_value());
@@ -158,7 +158,7 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DistTrait<'a, T> for Dist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T> for DenseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
@@ -181,10 +181,10 @@ where
     /// `None` if outside the distribution's support.
     ///
     /// ```
-    /// use diceystats::{DiceFormula, dist::{Dist, DistTrait}};
+    /// use diceystats::{DiceFormula, dist::{Dist, DenseDist}};
     ///
     /// let expr: DiceFormula = "d10".parse().unwrap();
-    /// let dist: Dist<f64> = expr.dist();
+    /// let dist: DenseDist<f64> = expr.dist();
     /// let p = dist.chance(3).unwrap_or(&0.0);
     /// assert_eq!(1.0 / 10.0, *p);
     /// ```
@@ -193,32 +193,32 @@ where
     }
 }
 
-impl<T: Num + FromPrimitive> Dist<T> {
+impl<T: Num + FromPrimitive> DenseDist<T> {
     pub(crate) fn uniform(min: isize, max: isize) -> Self {
         debug_assert!(min <= max);
         let choices = (max - min + 1) as usize;
-        Dist {
+        DenseDist {
             values: (min..=max).map(|_| T::one() / T::from_usize(choices).unwrap()).collect(),
             offset: min,
         }
     }
 }
 
-impl<T: Num + Clone> Dist<T> {
+impl<T: Num + Clone> DenseDist<T> {
     pub(crate) fn constant(n: isize) -> Self {
         let values = vec![T::one()];
 
-        Dist { values, offset: n }
+        DenseDist { values, offset: n }
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DenseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
 {
     fn op_inplace<F: Fn(isize, isize) -> isize>(
         &mut self,
-        other: &Dist<T>,
+        other: &DenseDist<T>,
         buffer: &mut Vec<T>,
         f: F,
     ) {
@@ -246,32 +246,32 @@ where
         buffer.clear();
     }
 
-    pub(crate) fn add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn add_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::add);
     }
 
-    pub(crate) fn mul_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn mul_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::mul);
     }
 
-    pub(crate) fn sub_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn sub_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::sub);
     }
 
-    pub(crate) fn max_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn max_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::max);
     }
 
-    pub(crate) fn min_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn min_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
         self.op_inplace(other, buffer, isize::min);
     }
 }
 
-impl<T: Num + Clone + AddAssign> Dist<T>
+impl<T: Num + Clone + AddAssign> DenseDist<T>
 where
     for<'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
 {
-    pub(crate) fn multi_add_inplace(&mut self, other: &Dist<T>, buffer: &mut Vec<T>) {
+    pub(crate) fn multi_add_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
         debug_assert!(buffer.is_empty());
         debug_assert!(0 <= self.offset);
 
@@ -291,7 +291,7 @@ where
             .max(self.max_value() * other.max_value());
 
         if max_value == min_value {
-            *self = Dist::constant(max_value);
+            *self = DenseDist::constant(max_value);
             return;
         }
 
@@ -398,45 +398,45 @@ pub(crate) struct DistEvaluator<T> {
     pub(crate) buffer: Vec<T>,
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<Dist<T>> for DistEvaluator<T>
+impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<DenseDist<T>> for DistEvaluator<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>
 {
     const LOSSY: bool = false;
 
-    fn dice(&mut self, d: usize) -> Dist<T> {
-        Dist::uniform(1, d as isize)
+    fn dice(&mut self, d: usize) -> DenseDist<T> {
+        DenseDist::uniform(1, d as isize)
     }
 
-    fn constant(&mut self, n: isize) -> Dist<T> {
-        Dist::constant(n)
+    fn constant(&mut self, n: isize) -> DenseDist<T> {
+        DenseDist::constant(n)
     }
 
-    fn multi_add_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+    fn multi_add_inplace(&mut self, a: &mut DenseDist<T>, b: &DenseDist<T>) {
         a.multi_add_inplace(b, &mut self.buffer);
     }
 
-    fn negate_inplace(&mut self, a: &mut Dist<T>) {
+    fn negate_inplace(&mut self, a: &mut DenseDist<T>) {
         a.negate_inplace();
     }
 
-    fn add_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+    fn add_inplace(&mut self, a: &mut DenseDist<T>, b: &DenseDist<T>) {
         a.add_inplace(b, &mut self.buffer);
     }
 
-    fn mul_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+    fn mul_inplace(&mut self, a: &mut DenseDist<T>, b: &DenseDist<T>) {
         a.mul_inplace(b, &mut self.buffer);
     }
 
-    fn sub_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+    fn sub_inplace(&mut self, a: &mut DenseDist<T>, b: &DenseDist<T>) {
         a.sub_inplace(b, &mut self.buffer);
     }
 
-    fn max_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+    fn max_inplace(&mut self, a: &mut DenseDist<T>, b: &DenseDist<T>) {
         a.max_inplace(b, &mut self.buffer);
     }
 
-    fn min_inplace(&mut self, a: &mut Dist<T>, b: &Dist<T>) {
+    fn min_inplace(&mut self, a: &mut DenseDist<T>, b: &DenseDist<T>) {
         a.min_inplace(b, &mut self.buffer);
     }
 }

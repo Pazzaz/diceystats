@@ -3,7 +3,7 @@ use num::BigRational;
 extern crate test;
 use crate::{
     DiceFormula,
-    dist::{Dist, DistTrait, SparseDist, WeirdDist},
+    dist::{DenseDist, Dist, SparseDist, WeirdDist},
 };
 use test::Bencher;
 
@@ -24,7 +24,7 @@ macro_rules! dist_bench {
         fn $f1(b: &mut Bencher) {
             let yep: DiceFormula = $s.parse().unwrap();
             b.iter(|| {
-                let res: Dist<$t> = yep.dist();
+                let res: DenseDist<$t> = yep.dist();
                 test::black_box(res);
             });
         }
@@ -48,8 +48,8 @@ macro_rules! dist_bench {
         #[test]
         fn $f4() {
             let yep: DiceFormula = $s.parse().unwrap();
-            let res1: WeirdDist<$t> = yep.dist();
-            let res2: Dist<$t> = yep.dist();
+            let res1: DenseDist<$t> = yep.dist();
+            let res2: WeirdDist<$t> = yep.dist();
             let res3: SparseDist<$t> = yep.dist();
             check_eq!(res1.mean(), res2.mean(), $t);
             check_eq!(res2.mean(), res3.mean(), $t);
