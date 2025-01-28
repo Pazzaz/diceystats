@@ -8,7 +8,8 @@ use simplify::Simplifier;
 use crate::dist::{DenseDist, Dist};
 
 pub mod list;
-pub mod parse;
+mod parse;
+pub use parse::DiceParseError;
 mod print;
 pub mod random;
 mod simplify;
@@ -18,7 +19,8 @@ mod simplify;
 /// You can also display a `DiceFormula` in a simplified form
 ///
 /// ```
-/// # use diceystats::DiceFormula;
+/// use diceystats::dices::DiceFormula;
+///
 /// let x: DiceFormula = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
 /// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)")
 /// ```
@@ -321,7 +323,7 @@ impl DiceFormula {
     ///
     /// ```
     /// use diceystats::{
-    ///     DiceFormula,
+    ///     dices::DiceFormula,
     ///     dist::{DenseDist, Dist},
     /// };
     /// use num::BigRational;
@@ -347,7 +349,7 @@ impl DiceFormula {
 
     /// Simplify the expression using simple rewriting rules
     /// ```
-    /// use diceystats::DiceFormula;
+    /// use diceystats::dices::DiceFormula;
     ///
     /// let complicated: DiceFormula = "min((d4+d5)*5, d5x2)".parse().unwrap();
     /// let simple = complicated.simplified();

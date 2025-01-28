@@ -73,7 +73,7 @@ where
     ///
     /// ```
     /// use diceystats::{
-    ///     DiceFormula,
+    ///     dices::DiceFormula,
     ///     dist::{DenseDist, Dist},
     /// };
     ///
@@ -91,7 +91,7 @@ where
     ///
     /// ```
     /// use diceystats::{
-    ///     DiceFormula,
+    ///     dices::DiceFormula,
     ///     dist::{DenseDist, Dist},
     /// };
     /// use num::BigRational;
@@ -137,7 +137,7 @@ where
     ///
     /// ```
     /// use diceystats::{
-    ///     DiceFormula,
+    ///     dices::DiceFormula,
     ///     dist::{DenseDist, Dist},
     /// };
     /// use num::BigRational;

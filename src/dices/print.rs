@@ -5,7 +5,8 @@ use super::{DiceFormula, Evaluator};
 /// Displays an expression slightly normalized, with parenthesis and spaces.
 ///
 /// ```
-/// use diceystats::DiceFormula;
+/// use diceystats::dices::DiceFormula;
+///
 /// let x: DiceFormula = "((d5) + d20xd5)* max(d4 *d4,d5, d10)x(d4*d8)".parse().unwrap();
 /// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)");
 /// ```

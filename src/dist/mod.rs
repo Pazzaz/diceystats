@@ -30,12 +30,16 @@ use crate::dices::Evaluator;
 #[cfg(test)]
 pub mod tests;
 
+/// Methods for finite discrete probability distributions
 pub trait Dist<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
     Self: Sized,
 {
+    /// New uniform distribution from `min` to, and including, `max`.
     fn new_uniform(min: isize, max: isize) -> Self;
+
+    /// New constant distribution, `n` has a 100% chance of occuring.
     fn new_constant(n: isize) -> Self;
 
     fn evaluator() -> impl Evaluator<Self>;

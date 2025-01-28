@@ -8,7 +8,7 @@
 //!
 //! ```
 //! use diceystats::{
-//!     DiceFormula,
+//!     dices::DiceFormula,
 //!     dist::{DenseDist, Dist},
 //!     roll,
 //! };
@@ -41,7 +41,7 @@
 //!
 //! ```
 //! # use diceystats::{
-//! #     DiceFormula,
+//! #     dices::DiceFormula,
 //! #     dist::{Dist, DenseDist},
 //! # };
 //! # use num::BigRational;
@@ -55,7 +55,7 @@
 //! there's a chance of rolling a negative *amount* of dice
 //!
 //! ```
-//! use diceystats::{DiceFormula, dist::Dist, roll};
+//! use diceystats::{dices::DiceFormula, dist::Dist, roll};
 //! use rand::thread_rng;
 //!
 //! roll("(d4 - d4)xd20", &mut thread_rng()).is_err();
@@ -70,11 +70,11 @@
 
 #![feature(test)]
 
-mod dices;
+pub mod dices;
 pub mod dist;
 use std::str::FromStr;
 
-pub use dices::{DiceFormula, list, parse::DiceParseError};
+use dices::{DiceFormula, DiceParseError};
 use rand::{Rng, prelude::Distribution};
 
 /// Roll dice and evaluate a dice formula.
