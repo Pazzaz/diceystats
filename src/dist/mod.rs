@@ -34,9 +34,16 @@ use crate::dices::Evaluator;
 pub mod tests;
 
 /// Methods for finite discrete probability distributions
-pub trait Dist<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone>
+pub trait Dist<'a, T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: 'a
+        + Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>,
     Self: Sized,
 {
     /// New uniform distribution from `min` to, and including, `max`.
@@ -141,11 +148,11 @@ where
             }
             tmp.set_zero();
             if next_a > next_b {
-                tmp += &next_a;
-                tmp -= &next_b;
+                tmp += next_a;
+                tmp -= next_b;
             } else {
-                tmp += &next_b;
-                tmp -= &next_a;
+                tmp += next_b;
+                tmp -= next_a;
             }
             total += &tmp;
         }
@@ -175,11 +182,11 @@ where
             }
             tmp.set_zero();
             if next_a > next_b {
-                tmp += &next_a;
-                tmp -= &next_b;
+                tmp += next_a;
+                tmp -= next_b;
             } else {
-                tmp += &next_b;
-                tmp -= &next_a;
+                tmp += next_b;
+                tmp -= next_a;
             }
             if tmp > max {
                 max = tmp.clone();
@@ -194,13 +201,18 @@ where
 ///
 /// In contrast to `Dist`, this trait requires the probability type `T` to
 /// implement [`SampleUniform`] and [`Default`].
-
-// We don't do a blanket implementation of this for `Dist`, because we want to
-// specialize it and Rust doesn't support specialization yet.
-pub trait AsRand<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + Weight + SampleUniform>:
-    Dist<'a, T>
+pub trait AsRand<'a, T>: Dist<'a, T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: 'a
+        + Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + Weight
+        + SampleUniform
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>,
 {
     /// Convert to a [`Distribution`]. Useful for sampling.
     #[must_use]
@@ -214,3 +226,6 @@ where
         WeightedIndex::new(chances).unwrap().map(move |x| values[x])
     }
 }
+
+// We don't do a blanket implementation of `AsRand` for `Dist`, because we want
+// to specialize it and Rust doesn't support specialization yet.

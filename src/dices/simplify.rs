@@ -100,7 +100,7 @@ impl Evaluator<DiceFormula> for Simplifier {
         let b_bounds = b.bounds();
         if a_bounds.1 <= b_bounds.0 {
             *a = b.clone();
-        } else if !(b_bounds.1 <= a_bounds.0) {
+        } else if b_bounds.1 > a_bounds.0 {
             a.max_assign(b);
         }
     }
@@ -110,7 +110,7 @@ impl Evaluator<DiceFormula> for Simplifier {
         let b_bounds = b.bounds();
         if b_bounds.1 <= a_bounds.0 {
             *a = b.clone();
-        } else if !(a_bounds.1 <= b_bounds.0) {
+        } else if a_bounds.1 > b_bounds.0 {
             a.min_assign(b);
         }
     }

@@ -19,7 +19,7 @@ pub struct WeirdDist<T> {
 impl<T> WeirdDist<T> {
     fn correct(&self) -> bool {
         for i in self.values.windows(2) {
-            if !(i[0].0 < i[1].0) {
+            if i[0].0 >= i[1].0 {
                 return false;
             }
         }
@@ -28,14 +28,6 @@ impl<T> WeirdDist<T> {
 
     fn new() -> Self {
         WeirdDist { values: Vec::new() }
-    }
-
-    fn min_value(&self) -> isize {
-        self.values.first().unwrap().0
-    }
-
-    fn max_value(&self) -> isize {
-        self.values.last().unwrap().0
     }
 
     fn get_index(&self, i: isize) -> Result<usize, usize> {
@@ -73,9 +65,16 @@ impl<T> WeirdDist<T> {
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Dist<'a, T> for WeirdDist<T>
+impl<'a, T> Dist<'a, T> for WeirdDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: 'a
+        + Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>,
 {
     fn evaluator() -> impl Evaluator<Self> {
         WeirdDistEvaluator {}
@@ -86,11 +85,11 @@ where
     }
 
     fn min_value(&self) -> isize {
-        self.min_value()
+        self.values.first().unwrap().0
     }
 
     fn max_value(&self) -> isize {
-        self.max_value()
+        self.values.last().unwrap().0
     }
 
     fn chance(&'a self, n: isize) -> Option<&'a T> {
@@ -102,7 +101,7 @@ where
         let values = (max - min + 1) as usize;
         let mut out = Vec::with_capacity(values);
         for i in min..=max {
-            out.push((i as isize, T::one() / T::from_usize(values).unwrap()));
+            out.push((i, T::one() / T::from_usize(values).unwrap()));
         }
         let out = WeirdDist { values: out };
         debug_assert!(out.correct());
@@ -110,24 +109,29 @@ where
     }
 
     fn new_constant(n: isize) -> Self {
-        let mut out = Vec::with_capacity(1);
-        out.push((n, T::one()));
-        let out = WeirdDist { values: out };
+        let out = WeirdDist { values: vec![(n, T::one())] };
         debug_assert!(out.correct());
         out
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + Weight + SampleUniform> AsRand<'a, T>
-    for WeirdDist<T>
-where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+impl<'a, T> AsRand<'a, T> for WeirdDist<T> where
+    for<'b> T: 'a
+        + Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + Weight
+        + SampleUniform
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>
 {
 }
 
-impl<T: Num> WeirdDist<T>
+impl<T> WeirdDist<T>
 where
-    for<'a> T: MulAssign<&'a T>,
+    for<'a> T: Num + MulAssign<&'a T>,
 {
     fn mul_constant(&mut self, c: isize) {
         if c == 0 {
@@ -145,10 +149,15 @@ where
 
 pub(crate) struct WeirdDistEvaluator;
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Evaluator<WeirdDist<T>>
-    for WeirdDistEvaluator
+impl<T> Evaluator<WeirdDist<T>> for WeirdDistEvaluator
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>,
 {
     const LOSSY: bool = false;
 

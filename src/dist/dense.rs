@@ -35,10 +35,18 @@ impl<T> DenseDist<T> {
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + Weight + SampleUniform> AsRand<'a, T>
-    for DenseDist<T>
+impl<'a, T> AsRand<'a, T> for DenseDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: 'a
+        + Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + Weight
+        + SampleUniform
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>,
 {
     #[must_use]
     fn to_rand_distribution(&'a self) -> impl Distribution<isize> {
@@ -46,9 +54,16 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Dist<'a, T> for DenseDist<T>
+impl<'a, T> Dist<'a, T> for DenseDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: 'a
+        + Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>,
 {
     fn evaluator() -> impl Evaluator<Self> {
         DistEvaluator { buffer: Vec::new() }
@@ -167,7 +182,7 @@ where
                         d = aa.clone();
                     }
                 }
-                (&Some(aa), &Some(bb)) => match aa.partial_cmp(&bb) {
+                (&Some(aa), &Some(bb)) => match aa.partial_cmp(bb) {
                     Some(Ordering::Equal) => {}
                     Some(Ordering::Greater) => {
                         let mut res = aa.clone();
@@ -200,9 +215,15 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> DenseDist<T>
+impl<T> DenseDist<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>,
 {
     fn op_inplace<F: Fn(isize, isize) -> isize>(
         &mut self,
@@ -386,10 +407,15 @@ pub(crate) struct DistEvaluator<T> {
     pub(crate) buffer: Vec<T>,
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Evaluator<DenseDist<T>>
-    for DistEvaluator<T>
+impl<T> Evaluator<DenseDist<T>> for DistEvaluator<T>
 where
-    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+    for<'b> T: Num
+        + FromPrimitive
+        + PartialOrd
+        + Clone
+        + MulAssign<&'b T>
+        + SubAssign<&'b T>
+        + AddAssign<&'b T>,
 {
     const LOSSY: bool = false;
 

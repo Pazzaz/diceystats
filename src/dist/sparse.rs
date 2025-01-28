@@ -49,7 +49,7 @@ where
         let values = (max - min + 1) as usize;
         let mut out = FnvHashMap::with_capacity_and_hasher(values, Default::default());
         for i in min..=max {
-            out.insert(i as isize, T::one() / T::from_usize(values).unwrap());
+            out.insert(i, T::one() / T::from_usize(values).unwrap());
         }
         SparseDist { values: out }
     }
@@ -69,8 +69,7 @@ where
 }
 
 pub(crate) struct SparseDistEvaluator;
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Evaluator<SparseDist<T>>
-    for SparseDistEvaluator
+impl<T: Num + FromPrimitive + PartialOrd + Clone> Evaluator<SparseDist<T>> for SparseDistEvaluator
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {

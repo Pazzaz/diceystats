@@ -23,7 +23,7 @@ pub struct ConfigEveryTree<'a> {
     pub print_progress: bool,
 }
 
-impl<'a> Default for ConfigEveryTree<'a> {
+impl Default for ConfigEveryTree<'_> {
     fn default() -> Self {
         Self {
             height: 2,

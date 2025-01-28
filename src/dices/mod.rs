@@ -333,9 +333,16 @@ impl DiceFormula {
     /// let exact_dist: DenseDist<BigRational> = expr.dist();
     /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
     /// ```
-    pub fn dist<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone, D: Dist<'a, T>>(&self) -> D
+    pub fn dist<'a, T, D: Dist<'a, T>>(&self) -> D
     where
-        for<'b> T: MulAssign<&'b T> + AddAssign<&'b T> + SubAssign<&'b T>,
+        for<'b> T: 'a
+            + Num
+            + FromPrimitive
+            + PartialOrd
+            + Clone
+            + MulAssign<&'b T>
+            + AddAssign<&'b T>
+            + SubAssign<&'b T>,
     {
         let mut e = D::evaluator();
         self.traverse(&mut e)
