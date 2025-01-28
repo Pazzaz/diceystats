@@ -4,7 +4,7 @@ use std::{
 };
 
 use num::{FromPrimitive, Num};
-use rand::distributions::uniform::SampleUniform;
+use rand::distr::{uniform::SampleUniform, weighted::Weight};
 
 use crate::dices::Evaluator;
 
@@ -118,7 +118,7 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + SampleUniform + Default> AsRand<'a, T>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + Weight + SampleUniform> AsRand<'a, T>
     for WeirdDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,

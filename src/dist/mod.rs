@@ -20,7 +20,10 @@ mod sparse;
 pub use complex::WeirdDist;
 pub use dense::DenseDist;
 use rand::{
-    distributions::{WeightedIndex, uniform::SampleUniform},
+    distr::{
+        uniform::SampleUniform,
+        weighted::{Weight, WeightedIndex},
+    },
     prelude::Distribution,
 };
 pub use sparse::SparseDist;
@@ -194,7 +197,7 @@ where
 
 // We don't do a blanket implementation of this for `Dist`, because we want to
 // specialize it and Rust doesn't support specialization yet.
-pub trait AsRand<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + SampleUniform + Default>:
+pub trait AsRand<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + Weight + SampleUniform>:
     Dist<'a, T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,

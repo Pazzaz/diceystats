@@ -1,5 +1,9 @@
 use super::{DiceFormula, Evaluator, Part};
-use rand::{Rng, distributions::Uniform, prelude::Distribution, seq::SliceRandom};
+use rand::{
+    Rng,
+    distr::Uniform,
+    prelude::{Distribution, IndexedRandom},
+};
 
 fn random_none<R: Rng + ?Sized>(rng: &mut R, n: usize) -> Part {
     let choices = [Part::Const(n as isize), Part::Dice(n)];
@@ -31,7 +35,7 @@ pub(crate) fn random_formula<R: Rng + ?Sized>(
     height: usize,
     value_size: usize,
 ) -> DiceFormula {
-    let dist = Uniform::new_inclusive(1, value_size);
+    let dist = Uniform::new_inclusive(1, value_size).unwrap();
     let bottom = 2usize.pow(height as u32);
     loop {
         let mut parts = Vec::new();
@@ -68,7 +72,7 @@ impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
     }
 
     fn dice(&mut self, d: usize) -> isize {
-        (self.rng.gen_range(1..=d)) as isize
+        (self.rng.random_range(1..=d)) as isize
     }
 
     fn constant(&mut self, n: isize) -> isize {

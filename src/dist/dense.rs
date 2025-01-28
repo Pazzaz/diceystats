@@ -7,7 +7,10 @@ use std::{
 
 use num::{FromPrimitive, Num};
 use rand::{
-    distributions::{WeightedIndex, uniform::SampleUniform},
+    distr::{
+        uniform::SampleUniform,
+        weighted::{Weight, WeightedIndex},
+    },
     prelude::Distribution,
 };
 
@@ -32,7 +35,7 @@ impl<T> DenseDist<T> {
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + SampleUniform + Default> AsRand<'a, T>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + Weight + SampleUniform> AsRand<'a, T>
     for DenseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
