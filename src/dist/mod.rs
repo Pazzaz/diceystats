@@ -19,6 +19,10 @@ mod dense;
 mod sparse;
 pub use complex::WeirdDist;
 pub use dense::DenseDist;
+use rand::{
+    distributions::{WeightedIndex, uniform::SampleUniform},
+    prelude::Distribution,
+};
 pub use sparse::SparseDist;
 
 use crate::dices::Evaluator;
@@ -175,5 +179,31 @@ where
             }
         }
         max
+    }
+}
+
+/// Trait to convert a [`Dist`] distribution to a [`Distribution`] (from
+/// [`rand`]).
+///
+/// In contrast to `Dist`, this trait requires the probability type `T` to
+/// implement [`SampleUniform`] and [`Default`].
+
+// We don't do a blanket implementation of this for `Dist`, because we want to
+// specialize it and Rust doesn't support specialization yet.
+pub trait AsRand<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + SampleUniform + Default>:
+    Dist<'a, T>
+where
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+{
+    /// Convert to a [`Distribution`]. Useful for sampling.
+    #[must_use]
+    fn to_rand_distribution(&'a self) -> impl Distribution<isize> {
+        let mut values = Vec::new();
+        let mut chances = Vec::new();
+        for a in self.iter_enumerate() {
+            values.push(a.0);
+            chances.push(a.1);
+        }
+        WeightedIndex::new(chances).unwrap().map(move |x| values[x])
     }
 }

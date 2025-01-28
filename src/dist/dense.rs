@@ -13,7 +13,7 @@ use rand::{
 
 use crate::dices::Evaluator;
 
-use super::Dist;
+use super::{AsRand, Dist};
 
 /// A discrete distribution of outcomes, stored densely in a [`Vec`].
 ///
@@ -32,18 +32,18 @@ impl<T> DenseDist<T> {
     }
 }
 
-impl<T: SampleUniform + PartialOrd + Clone + Default> DenseDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + SampleUniform + Default> AsRand<'a, T>
+    for DenseDist<T>
 where
-    for<'a> T: AddAssign<&'a T>,
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
-    /// Convert to a [`Distribution`]. Useful for sampling.
     #[must_use]
-    pub fn to_distribution(self) -> impl Distribution<isize> {
-        WeightedIndex::new(self.values).unwrap().map(move |x| x as isize + self.offset)
+    fn to_rand_distribution(&'a self) -> impl Distribution<isize> {
+        WeightedIndex::new(&self.values).unwrap().map(move |x| x as isize + self.offset)
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T> for DenseDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Dist<'a, T> for DenseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
@@ -197,7 +197,7 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> DenseDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> DenseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
@@ -222,7 +222,7 @@ where
                 let new_value = f(a_i, b_i);
                 let mut res: T = a.clone();
                 res.mul_assign(b);
-                buffer[(new_value - min_value) as usize] += res;
+                buffer[(new_value - min_value) as usize] += &res;
             }
         }
         self.values.clear();
@@ -316,7 +316,7 @@ where
                     let d_i = (real_d_i - min_value_tmp) as usize;
                     let mut res = b.clone();
                     res *= c;
-                    dest[d_i] += res;
+                    dest[d_i] += &res;
                 }
             }
         }
@@ -354,7 +354,7 @@ where
                     let d_i = (real_d_i - min_value_tmp) as usize;
                     let mut res = b.clone();
                     res *= c;
-                    dest[d_i] += res;
+                    dest[d_i] += &res;
                 }
             }
             if a.is_zero() {
@@ -369,7 +369,7 @@ where
                 let mut res = d.clone();
                 res *= a;
                 let p_i = (real_d_i - min_value) as usize;
-                buffer[p_i] += res;
+                buffer[p_i] += &res;
             }
         }
         self.values.clear();
@@ -383,7 +383,7 @@ pub(crate) struct DistEvaluator<T> {
     pub(crate) buffer: Vec<T>,
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<DenseDist<T>>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Evaluator<DenseDist<T>>
     for DistEvaluator<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,

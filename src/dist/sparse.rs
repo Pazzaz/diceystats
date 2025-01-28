@@ -5,10 +5,11 @@ use std::{
 
 use fnv::FnvHashMap;
 use num::{FromPrimitive, Num};
+use rand::distributions::uniform::SampleUniform;
 
 use crate::dices::Evaluator;
 
-use super::Dist;
+use super::{AsRand, Dist};
 
 /// A discrete distribution of outcomes, stored sparsely in a
 /// [`HashMap`](std::collections::HashMap).
@@ -17,7 +18,7 @@ pub struct SparseDist<T> {
     values: FnvHashMap<isize, T>,
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T> for SparseDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Dist<'a, T> for SparseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
@@ -60,8 +61,15 @@ where
     }
 }
 
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + SampleUniform + Default> AsRand<'a, T>
+    for SparseDist<T>
+where
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+{
+}
+
 pub(crate) struct SparseDistEvaluator;
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<SparseDist<T>>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Evaluator<SparseDist<T>>
     for SparseDistEvaluator
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
@@ -113,7 +121,7 @@ where
                         let mut tmp = b_v.clone();
                         tmp *= c_v;
                         let entry = out2.entry(b_k + c_k).or_insert(T::zero());
-                        *entry += tmp;
+                        *entry += &tmp;
                     }
                 }
             }
@@ -122,7 +130,7 @@ where
                 let mut tmp = a_v.clone();
                 tmp *= c_v;
                 let entry = out_final.entry(c_k).or_insert(T::zero());
-                *entry += tmp;
+                *entry += &tmp;
             }
         }
         a.values = out_final;
@@ -141,7 +149,7 @@ where
                 let entry = out.entry(a_k + b_k).or_insert(T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                *entry += &tmp;
             }
         }
         a.values = out;
@@ -156,7 +164,7 @@ where
                 let entry = out.entry(a_k * b_k).or_insert(T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                *entry += &tmp;
             }
         }
         a.values = out;
@@ -171,7 +179,7 @@ where
                 let entry = out.entry(a_k - b_k).or_insert(T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                *entry += &tmp;
             }
         }
         a.values = out;
@@ -186,7 +194,7 @@ where
                 let entry = out.entry(a_k.max(b_k)).or_insert(T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                *entry += &tmp;
             }
         }
         a.values = out;
@@ -201,7 +209,7 @@ where
                 let entry = out.entry(a_k.min(b_k)).or_insert(T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
-                *entry += tmp;
+                *entry += &tmp;
             }
         }
         a.values = out;

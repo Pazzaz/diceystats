@@ -4,10 +4,11 @@ use std::{
 };
 
 use num::{FromPrimitive, Num};
+use rand::distributions::uniform::SampleUniform;
 
 use crate::dices::Evaluator;
 
-use super::Dist;
+use super::{AsRand, Dist};
 
 /// A discrete distribution of outcomes, stored sparsely in a [`Vec`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -72,7 +73,7 @@ impl<T> WeirdDist<T> {
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Dist<'a, T> for WeirdDist<T>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Dist<'a, T> for WeirdDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
@@ -117,6 +118,13 @@ where
     }
 }
 
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + SampleUniform + Default> AsRand<'a, T>
+    for WeirdDist<T>
+where
+    for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
+{
+}
+
 impl<T: Num> WeirdDist<T>
 where
     for<'a> T: MulAssign<&'a T>,
@@ -137,7 +145,7 @@ where
 
 pub(crate) struct WeirdDistEvaluator;
 
-impl<'a, T: 'a + Num + FromPrimitive + AddAssign + PartialOrd + Clone> Evaluator<WeirdDist<T>>
+impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Evaluator<WeirdDist<T>>
     for WeirdDistEvaluator
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
@@ -177,7 +185,7 @@ where
                         tmp *= c_v;
                         match out2.get_mut_or_insert(b_k + c_k) {
                             Ok(entry) => {
-                                *entry += tmp;
+                                *entry += &tmp;
                             }
                             Err(x) => out2.values.insert(x, (b_k + c_k, tmp)),
                         }
@@ -190,7 +198,7 @@ where
                 tmp *= c_v;
                 match out_final.get_mut_or_insert(*c_k) {
                     Ok(entry) => {
-                        *entry += tmp;
+                        *entry += &tmp;
                     }
                     Err(x) => out_final.values.insert(x, (*c_k, tmp)),
                 }
@@ -214,7 +222,7 @@ where
                 tmp *= b_v;
                 match out.get_mut_or_insert(a_k + b_k) {
                     Ok(entry) => {
-                        *entry += tmp;
+                        *entry += &tmp;
                     }
                     Err(x) => out.values.insert(x, (a_k + b_k, tmp)),
                 }
@@ -239,7 +247,7 @@ where
                     tmp *= b_v;
                     match out.get_mut_or_insert(a_k * b_k) {
                         Ok(entry) => {
-                            *entry += tmp;
+                            *entry += &tmp;
                         }
                         Err(x) => out.values.insert(x, (a_k * b_k, tmp)),
                     }
@@ -258,7 +266,7 @@ where
                 tmp *= b_v;
                 match out.get_mut_or_insert(a_k - b_k) {
                     Ok(entry) => {
-                        *entry += tmp;
+                        *entry += &tmp;
                     }
                     Err(x) => out.values.insert(x, (a_k - b_k, tmp)),
                 }
