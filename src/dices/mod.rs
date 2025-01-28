@@ -2,7 +2,6 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 use num::{FromPrimitive, Num};
 use rand::Rng;
-use random::random_formula;
 use simplify::Simplifier;
 
 use crate::dist::{DenseDist, Dist};
@@ -11,7 +10,8 @@ pub mod list;
 mod parse;
 pub use parse::DiceParseError;
 mod print;
-pub mod random;
+mod random;
+pub use random::random_formula;
 mod simplify;
 
 /// A sequence of interacting dice rolls
@@ -64,10 +64,18 @@ impl Part {
     }
 }
 
-// Used when traversing the tree of a `DiceFormula`
+/// Evaluates a [`DiceFormula`].
+///
+/// Evaluators are used by [`DiceFormula::traverse`] to evaluate a formula as a
+/// tree, depth first, to some `T`. For each node, it calls the associated
+/// `Evaluator` function, giving the child nodes as arguments.
+///
+/// This trait is used internally for printing, sampling, calculating
+/// distributions, etc.
 pub trait Evaluator<T> {
-    // Used for `multi_add`: some evaluators have to reevaluate the right side
-    // expression multiple times (LOSSY = true) while some don't (LOSSY = false)
+    /// Used for `multi_add`: some evaluators have to reevaluate the right side
+    /// expression multiple times (`LOSSY = true`) while some don't (`LOSSY =
+    /// false`).
     const LOSSY: bool;
     fn to_usize(_x: T) -> usize {
         unreachable!("Only used if operations are LOSSY");
@@ -193,8 +201,8 @@ impl DiceFormula {
         *self.parts.last().unwrap()
     }
 
-    // Traverse the tree with an Evaluator.
-    fn traverse<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
+    /// Traverse the tree with an [Evaluator].
+    pub fn traverse<T, Q: Evaluator<T>>(&self, state: &mut Q) -> T {
         let mut stack: Vec<EvaluateStage> = vec![EvaluateStage::collect_from(self.top_part())];
         let mut values: Vec<T> = Vec::new();
         while let Some(x) = stack.pop() {

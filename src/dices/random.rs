@@ -30,7 +30,7 @@ impl Distribution<isize> for DiceFormula {
     }
 }
 
-pub(crate) fn random_formula<R: Rng + ?Sized>(
+pub fn random_formula<R: Rng + ?Sized>(
     rng: &mut R,
     height: usize,
     value_size: usize,

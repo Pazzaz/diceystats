@@ -92,7 +92,7 @@ where
         total
     }
 
-    /// A value `x` such that `P(X <= m) >= 0.5` and `P(m <= X) >= 0.5`.
+    /// The [median](https://en.wikipedia.org/wiki/Median#Probability_distributions) of the distribution; an `x` such that `P(X <= m) >= 0.5` and `P(m <= X) >= 0.5`.
     fn median(&'a self) -> isize {
         let half = T::from_f64(0.5).unwrap();
         let mut total = T::zero();

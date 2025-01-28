@@ -1,4 +1,6 @@
 use num::BigRational;
+use rand::SeedableRng;
+use rand_chacha::ChaCha20Rng;
 
 extern crate test;
 use crate::{
@@ -130,3 +132,19 @@ dist_bench!(
     large_min_weird,
     large_min_eq
 );
+
+#[test]
+fn dist_random() {
+    let mut rng = ChaCha20Rng::seed_from_u64(123);
+    for _ in 0..200 {
+        // Generate a random expression and check if its distribution is the same after
+        // being formatted and parsed into a new expression.
+        let a = DiceFormula::random(&mut rng, 2, 3);
+        let dist1: DenseDist<BigRational> = a.dist();
+        let dist2: WeirdDist<BigRational> = a.dist();
+        let dist3: SparseDist<BigRational> = a.dist();
+        println!("{:?}", a);
+        assert_eq!(dist1.mean(), dist2.mean(), "{a}");
+        assert_eq!(dist2.mean(), dist3.mean(), "{a}");
+    }
+}

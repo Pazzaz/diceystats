@@ -179,7 +179,6 @@ where
         let mut previous: usize = 0;
         for (a_k_i, a_v) in a.values.drain(..) {
             debug_assert!(a_k_i >= 0);
-            debug_assert!(a_v != T::zero());
             let a_k = a_k_i as usize;
 
             let new_offset = a_k - previous;
@@ -201,15 +200,16 @@ where
                     }
                 }
             }
-
-            for (c_k, c_v) in &out2.values {
-                let mut tmp = a_v.clone();
-                tmp *= c_v;
-                match out_final.get_mut_or_insert(*c_k) {
-                    Ok(entry) => {
-                        *entry += &tmp;
+            if !a_v.is_zero() {
+                for (c_k, c_v) in &out2.values {
+                    let mut tmp = a_v.clone();
+                    tmp *= c_v;
+                    match out_final.get_mut_or_insert(*c_k) {
+                        Ok(entry) => {
+                            *entry += &tmp;
+                        }
+                        Err(x) => out_final.values.insert(x, (*c_k, tmp)),
                     }
-                    Err(x) => out_final.values.insert(x, (*c_k, tmp)),
                 }
             }
         }
