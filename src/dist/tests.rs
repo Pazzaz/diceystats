@@ -106,3 +106,27 @@ dist_bench!(
     negative_mul_weird,
     negative_mul_eq
 );
+dist_bench!(
+    "max(d15*d14, d13*d16)",
+    BigRational,
+    large_max_dense,
+    large_max_space,
+    large_max_weird,
+    large_max_eq
+);
+dist_bench!(
+    "max(d15*d14, d13*d16)",
+    f64,
+    large_max_float_dense,
+    large_max_float_space,
+    large_max_float_weird,
+    large_max_float_eq
+);
+dist_bench!(
+    "min(d15*d14, d13*d16)",
+    BigRational,
+    large_min_dense,
+    large_min_space,
+    large_min_weird,
+    large_min_eq
+);

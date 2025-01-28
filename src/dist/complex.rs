@@ -268,36 +268,60 @@ where
         debug_assert!(a.correct());
     }
 
+    // Same as `min_inplace` but uses `take_while`
     fn max_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
         let mut out = WeirdDist::new();
+        let mut tmp = T::zero();
         for (a_k, a_v) in a.values.iter() {
-            for (b_k, b_v) in b.values.iter() {
-                let mut tmp = a_v.clone();
-                tmp *= b_v;
-                match out.get_mut_or_insert(*a_k.max(b_k)) {
-                    Ok(entry) => {
-                        *entry += tmp;
-                    }
-                    Err(x) => out.values.insert(x, (*a_k.max(b_k), tmp)),
-                }
+            tmp.set_zero();
+            for (_, b_v) in b.values.iter().take_while(|x| x.0 <= *a_k) {
+                tmp += b_v;
+            }
+            tmp *= a_v;
+            match out.get_mut_or_insert(*a_k) {
+                Ok(entry) => *entry += &tmp,
+                Err(x) => out.values.insert(x, (*a_k, tmp.clone())),
+            }
+        }
+        for (b_k, b_v) in b.values.iter() {
+            tmp.set_zero();
+            for (_, a_v) in a.values.iter().take_while(|x| x.0 < *b_k) {
+                tmp += a_v;
+            }
+            tmp *= b_v;
+            match out.get_mut_or_insert(*b_k) {
+                Ok(entry) => *entry += &tmp,
+                Err(x) => out.values.insert(x, (*b_k, tmp.clone())),
             }
         }
         *a = out;
         debug_assert!(a.correct());
     }
 
+    // Same as `max_inplace` but uses `skip_while`
     fn min_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
         let mut out = WeirdDist::new();
+        let mut tmp = T::zero();
         for (a_k, a_v) in a.values.iter() {
-            for (b_k, b_v) in b.values.iter() {
-                let mut tmp = a_v.clone();
-                tmp *= b_v;
-                match out.get_mut_or_insert(*a_k.min(b_k)) {
-                    Ok(entry) => {
-                        *entry += tmp;
-                    }
-                    Err(x) => out.values.insert(x, (*a_k.min(b_k), tmp)),
-                }
+            tmp.set_zero();
+            for (_, b_v) in b.values.iter().skip_while(|x| x.0 <= *a_k) {
+                tmp += b_v;
+            }
+            tmp *= a_v;
+            match out.get_mut_or_insert(*a_k) {
+                Ok(entry) => *entry += &tmp,
+                Err(x) => out.values.insert(x, (*a_k, tmp.clone())),
+            }
+        }
+        for (b_k, b_v) in b.values.iter() {
+            tmp.set_zero();
+            for (_, a_v) in a.values.iter().skip_while(|x| x.0 < *b_k) {
+                tmp += a_v;
+            }
+            tmp *= b_v;
+            match out.get_mut_or_insert(*b_k) {
+                Ok(entry) => *entry += &tmp,
+                Err(x) => out.values.insert(x, (*b_k, tmp.clone())),
             }
         }
         *a = out;
