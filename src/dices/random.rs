@@ -65,7 +65,7 @@ struct SampleEvaluator<'a, R: Rng + ?Sized> {
 }
 
 impl<R: Rng + ?Sized> Evaluator<isize> for SampleEvaluator<'_, R> {
-    const LOSSY: bool = true;
+    const CUSTOM_MULTI_ADD: bool = false;
 
     fn to_usize(x: isize) -> usize {
         x.try_into().unwrap_or_else(|_| panic!("Can't roll negative amount of dice"))

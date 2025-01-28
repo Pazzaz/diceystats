@@ -7,7 +7,7 @@ use super::{DiceFormula, Evaluator, Part};
 pub(crate) struct Simplifier {}
 
 impl Evaluator<DiceFormula> for Simplifier {
-    const LOSSY: bool = false;
+    const CUSTOM_MULTI_ADD: bool = true;
 
     fn dice(&mut self, d: usize) -> DiceFormula {
         if d == 1 { DiceFormula::constant(1) } else { DiceFormula::dice(d) }

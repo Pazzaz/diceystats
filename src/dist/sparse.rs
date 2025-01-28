@@ -73,7 +73,7 @@ impl<T: Num + FromPrimitive + PartialOrd + Clone> Evaluator<SparseDist<T>> for S
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
-    const LOSSY: bool = false;
+    const CUSTOM_MULTI_ADD: bool = true;
 
     fn dice(&mut self, d: usize) -> SparseDist<T> {
         SparseDist::new_uniform(1, d as isize)

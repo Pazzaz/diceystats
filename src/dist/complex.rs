@@ -159,7 +159,7 @@ where
         + SubAssign<&'b T>
         + AddAssign<&'b T>,
 {
-    const LOSSY: bool = false;
+    const CUSTOM_MULTI_ADD: bool = true;
 
     fn dice(&mut self, d: usize) -> WeirdDist<T> {
         WeirdDist::new_uniform(1, d as isize)

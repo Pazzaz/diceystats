@@ -21,7 +21,7 @@ impl fmt::Display for DiceFormula {
 struct StringEvaluator {}
 
 impl Evaluator<(String, usize)> for StringEvaluator {
-    const LOSSY: bool = false;
+    const CUSTOM_MULTI_ADD: bool = true;
 
     fn dice(&mut self, d: usize) -> (String, usize) {
         (format!("d{}", d), 8)

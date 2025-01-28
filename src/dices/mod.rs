@@ -66,24 +66,44 @@ impl Part {
 
 /// Evaluates a [`DiceFormula`].
 ///
-/// Evaluators are used by [`DiceFormula::traverse`] to evaluate a formula as a
-/// tree, depth first, to some `T`. For each node, it calls the associated
-/// `Evaluator` function, giving the child nodes as arguments.
+/// Evaluators are used by [`DiceFormula::traverse`] to evaluate a formula
+/// recursively[^note] as a tree, depth-first, returning some `T`. For each
+/// node, it calls the associated `Evaluator` function, giving the child nodes
+/// as arguments.
 ///
 /// This trait is used internally for printing, sampling, calculating
-/// distributions, etc.
+/// distributions, and so on.
+///
+/// Which functions of the trait you should implement depends on whether the
+/// evaluator has a custom `multi_add`. If `CUSTOM_MULTI_ADD` is:
+/// - `true`:  Implement `multi_add_inplace`, not `to_usize`
+/// - `false`:  Implement `to_usize`, not `multi_add_inplace`
+///
+/// [^note]: Not actually implemented as a recursive function.
 pub trait Evaluator<T> {
-    /// Used for `multi_add`: some evaluators have to reevaluate the right side
-    /// expression multiple times (`LOSSY = true`) while some don't (`LOSSY =
-    /// false`).
-    const LOSSY: bool;
+    /// Whether to use a custom `multi_add` or just evaluate the left-hand side
+    /// and use that to decide how many times to evaluate the right-hand side.
+    const CUSTOM_MULTI_ADD: bool;
+
+    /// Convert value to `usize`, used when `CUSTOM_MULTI_ADD = false` to count
+    /// how many times to evaluate the right side of a `multi_add` (`x`)
+    /// operation.
     fn to_usize(_x: T) -> usize {
-        unreachable!("Only used if operations are LOSSY");
+        unreachable!("Used when no CUSTOM_MULTI_ADD");
     }
+
+    /// Evaluate a dice as a leaf node (e.g. `d20`).
     fn dice(&mut self, d: usize) -> T;
+
+    /// Evaluate a constant as a leaf node (e.g. `4`).
     fn constant(&mut self, n: isize) -> T;
+
+    /// Perform a `multi_add` (`x`). The left argument decides how many times to
+    /// evaluate the right argument, then the results from the right argument
+    /// are summed together. This function is used when `CUSTOM_MULTI_ADD =
+    /// true`.
     fn multi_add_inplace(&mut self, _a: &mut T, _b: &T) {
-        unreachable!("Only used if operations are not LOSSY");
+        unreachable!("CUSTOM_MULTI_ADD: missing implementation");
     }
     fn negate_inplace(&mut self, a: &mut T);
     fn add_inplace(&mut self, a: &mut T, b: &T);
@@ -105,7 +125,7 @@ impl Bounds {
 }
 
 impl Evaluator<(isize, isize)> for Bounds {
-    const LOSSY: bool = false;
+    const CUSTOM_MULTI_ADD: bool = true;
 
     fn dice(&mut self, d: usize) -> (isize, isize) {
         (1, d as isize)
@@ -156,7 +176,7 @@ impl Evaluator<(isize, isize)> for Bounds {
     }
 }
 
-// A state machine used in `DiceFormula::traverse`
+// State machine used in `DiceFormula::traverse`
 enum EvaluateStage {
     Dice(usize),
     Const(isize),
@@ -210,17 +230,17 @@ impl DiceFormula {
                 EvaluateStage::Dice(dice) => values.push(state.dice(dice)),
                 EvaluateStage::Const(n) => values.push(state.constant(n)),
                 EvaluateStage::MultiAddCreate(a, b) => {
-                    if Q::LOSSY {
-                        stack.push(EvaluateStage::MultiAddCollectPartial(b));
-                        stack.push(EvaluateStage::collect_from(self.parts[a]));
-                    } else {
+                    if Q::CUSTOM_MULTI_ADD {
                         stack.push(EvaluateStage::MultiAddCollect);
                         stack.push(EvaluateStage::collect_from(self.parts[a]));
                         stack.push(EvaluateStage::collect_from(self.parts[b]));
+                    } else {
+                        stack.push(EvaluateStage::MultiAddCollectPartial(b));
+                        stack.push(EvaluateStage::collect_from(self.parts[a]));
                     }
                 }
                 EvaluateStage::MultiAddCollectPartial(b) => {
-                    assert!(Q::LOSSY);
+                    assert!(!Q::CUSTOM_MULTI_ADD);
                     let aa = Q::to_usize(values.pop().unwrap());
                     stack.push(EvaluateStage::MultiAddExtra(aa));
                     for _ in 0..aa {
@@ -228,7 +248,7 @@ impl DiceFormula {
                     }
                 }
                 EvaluateStage::MultiAddCollect => {
-                    assert!(!Q::LOSSY);
+                    assert!(Q::CUSTOM_MULTI_ADD);
                     let mut aa = values.pop().unwrap();
                     let bb = values.pop().unwrap();
                     state.multi_add_inplace(&mut aa, &bb);
