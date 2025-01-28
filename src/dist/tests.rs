@@ -93,6 +93,14 @@ dist_bench!(
     many_additions_eq
 );
 dist_bench!(
+    "d20-d20-d20-d20-d20-d20-d20-d20-d20-d20-d20",
+    f64,
+    many_subs_dense,
+    many_subs_space,
+    many_subs_weird,
+    many_subs_eq
+);
+dist_bench!(
     "d20*d20*d20*d20*d20",
     f64,
     many_multiplications_dense,
