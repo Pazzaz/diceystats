@@ -309,7 +309,44 @@ where
     }
 
     pub(crate) fn min_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, isize::min);
+        debug_assert!(buffer.is_empty());
+
+        let sl = self.max_value();
+        let sm = self.min_value();
+        let ol = other.max_value();
+        let om = other.min_value();
+        let max_value = isize::min(sl, ol);
+        let min_value = isize::min(sm, om);
+
+        buffer.resize((max_value - min_value + 1) as usize, T::zero());
+        let mut tmp = T::one();
+        let mut seen = 0;
+        for (a_k, a_v) in self.iter_enumerate() {
+            if a_k > max_value { break; }
+            for (_, b_v) in other.iter_enumerate().skip(seen).take_while(|x| x.0 <= a_k) {
+                tmp -= b_v;
+                seen += 1;
+            }
+            let mut tmp2 = tmp.clone();
+            tmp2 *= a_v;
+            buffer[(a_k - min_value) as usize] += &tmp2;
+        }
+        tmp.set_one();
+        seen = 0;
+        for (b_k, b_v) in other.iter_enumerate() {
+            if b_k > max_value { break; }
+            for (_, a_v) in self.iter_enumerate().skip(seen).take_while(|x| x.0 < b_k) {
+                tmp -= a_v;
+                seen += 1;
+            }
+            let mut tmp2 = tmp.clone();
+            tmp2 *= b_v;
+            buffer[(b_k - min_value) as usize] += &tmp2;
+        }
+        self.values.clear();
+        self.values.extend_from_slice(&buffer[..]);
+        self.offset = min_value;
+        buffer.clear();
     }
 
     pub(crate) fn negate_inplace(&mut self) {
