@@ -268,7 +268,62 @@ where
     }
 
     pub(crate) fn max_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
-        self.op_inplace(other, buffer, isize::max);
+        debug_assert!(buffer.is_empty());
+
+        let sl = self.max_value();
+        let sm = self.min_value();
+        let ol = other.max_value();
+        let om = other.min_value();
+        let max_value = isize::max(sl, ol);
+        let min_value = isize::max(sm, om);
+
+        buffer.resize((max_value - min_value + 1) as usize, T::zero());
+        let mut tmp = T::zero();
+        let lower = usize::try_from(om - self.offset).unwrap_or(0);
+        for a_ii in lower..self.values.len() {
+            let a_i = (a_ii as isize) + self.offset;
+            let a = &self.values[a_ii];
+            if a.is_zero() {
+                continue;
+            }
+            tmp.set_zero();
+            let upper = other.values.len().min(usize::try_from(a_i - other.offset + 1).unwrap());
+            for b_ii in 0..upper {
+                let b = &other.values[b_ii];
+                if !b.is_zero() {
+                    tmp += &b;
+                }
+            }
+            if !tmp.is_zero() {
+                tmp *= a;
+                buffer[(a_i - min_value) as usize] += &tmp;
+            }
+        }
+
+        let lower = (sm - other.offset).max(0) as usize;
+        for b_ii in lower..other.values.len() {
+            let b_i = (b_ii as isize) + other.offset;
+            let b = &other.values[b_ii];
+            if b.is_zero() {
+                continue;
+            }
+            tmp.set_zero();
+            let upper = self.values.len().min(usize::try_from(b_i - self.offset).unwrap());
+            for a_ii in 0..upper {
+                let a = &self.values[a_ii];
+                if !a.is_zero() {
+                    tmp += &a;
+                }
+            }
+            if !tmp.is_zero() {
+                tmp *= b;
+                buffer[(b_i - min_value) as usize] += &tmp;
+            }
+        }
+        self.values.clear();
+        self.values.extend_from_slice(&buffer[..]);
+        self.offset = min_value;
+        buffer.clear();
     }
 
     pub(crate) fn min_inplace(&mut self, other: &DenseDist<T>, buffer: &mut Vec<T>) {
