@@ -289,26 +289,31 @@ where
     fn max_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
         let mut out = WeirdDist::new();
         let mut tmp = T::zero();
+        let mut seen = 0;
         for (a_k, a_v) in a.values.iter() {
-            tmp.set_zero();
-            for (_, b_v) in b.values.iter().take_while(|x| x.0 <= *a_k) {
+            for (_, b_v) in b.values.iter().skip(seen).take_while(|x| x.0 <= *a_k) {
                 tmp += b_v;
+                seen += 1;
             }
-            tmp *= a_v;
+            let mut tmp2 = tmp.clone();
+            tmp2 *= a_v;
             match out.get_mut_or_insert(*a_k) {
-                Ok(entry) => *entry += &tmp,
-                Err(x) => out.values.insert(x, (*a_k, tmp.clone())),
+                Ok(entry) => *entry += &tmp2,
+                Err(x) => out.values.insert(x, (*a_k, tmp2)),
             }
         }
+        tmp.set_zero();
+        seen = 0;
         for (b_k, b_v) in b.values.iter() {
-            tmp.set_zero();
-            for (_, a_v) in a.values.iter().take_while(|x| x.0 < *b_k) {
+            for (_, a_v) in a.values.iter().skip(seen).take_while(|x| x.0 < *b_k) {
                 tmp += a_v;
+                seen += 1;
             }
-            tmp *= b_v;
+            let mut tmp2 = tmp.clone();
+            tmp2 *= b_v;
             match out.get_mut_or_insert(*b_k) {
-                Ok(entry) => *entry += &tmp,
-                Err(x) => out.values.insert(x, (*b_k, tmp.clone())),
+                Ok(entry) => *entry += &tmp2,
+                Err(x) => out.values.insert(x, (*b_k, tmp2)),
             }
         }
         *a = out;
