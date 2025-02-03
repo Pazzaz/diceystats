@@ -279,46 +279,28 @@ where
 
         buffer.resize((max_value - min_value + 1) as usize, T::zero());
         let mut tmp = T::zero();
-        let lower = usize::try_from(om - self.offset).unwrap_or(0);
-        for a_ii in lower..self.values.len() {
-            let a_i = (a_ii as isize) + self.offset;
-            let a = &self.values[a_ii];
-            if a.is_zero() {
-                continue;
+        let mut seen = 0;
+        for (a_k, a_v) in self.iter_enumerate() {
+            for (_, b_v) in other.iter_enumerate().skip(seen).take_while(|x| x.0 <= a_k) {
+                tmp += b_v;
+                seen += 1;
             }
-            tmp.set_zero();
-            let upper = other.values.len().min(usize::try_from(a_i - other.offset + 1).unwrap());
-            for b_ii in 0..upper {
-                let b = &other.values[b_ii];
-                if !b.is_zero() {
-                    tmp += &b;
-                }
-            }
-            if !tmp.is_zero() {
-                tmp *= a;
-                buffer[(a_i - min_value) as usize] += &tmp;
-            }
+            if seen == 0 { continue; }
+            let mut tmp2 = tmp.clone();
+            tmp2 *= a_v;
+            buffer[(a_k - min_value) as usize] += &tmp2;
         }
-
-        let lower = (sm - other.offset).max(0) as usize;
-        for b_ii in lower..other.values.len() {
-            let b_i = (b_ii as isize) + other.offset;
-            let b = &other.values[b_ii];
-            if b.is_zero() {
-                continue;
+        tmp.set_zero();
+        seen = 0;
+        for (b_k, b_v) in other.iter_enumerate() {
+            for (_, a_v) in self.iter_enumerate().skip(seen).take_while(|x| x.0 < b_k) {
+                tmp += a_v;
+                seen += 1;
             }
-            tmp.set_zero();
-            let upper = self.values.len().min(usize::try_from(b_i - self.offset).unwrap());
-            for a_ii in 0..upper {
-                let a = &self.values[a_ii];
-                if !a.is_zero() {
-                    tmp += &a;
-                }
-            }
-            if !tmp.is_zero() {
-                tmp *= b;
-                buffer[(b_i - min_value) as usize] += &tmp;
-            }
+            if seen == 0 { continue; }
+            let mut tmp2 = tmp.clone();
+            tmp2 *= b_v;
+            buffer[(b_k - min_value) as usize] += &tmp2;
         }
         self.values.clear();
         self.values.extend_from_slice(&buffer[..]);
