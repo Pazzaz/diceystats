@@ -189,39 +189,43 @@ where
         let b_len = b.values.len();
         let a_sorted: Vec<(isize, &T)> = a.iter_enumerate().collect();
         let b_sorted: Vec<(isize, &T)> = b.iter_enumerate().collect();
-        let mut out: FnvHashMap<isize, _> = FnvHashMap::with_capacity_and_hasher(a_len.min(b_len), Default::default());
+        let mut out = FnvHashMap::with_capacity_and_hasher(a_len.min(b_len), Default::default());
         let mut tmp = T::zero();
         let mut seen = 0;
-        for (a_k, a_v) in &a_sorted {
+        for &(a_k, a_v) in &a_sorted {
             if a_v.is_zero() {
                 continue;
             }
-            for (_, b_v) in b_sorted.iter().skip(seen).take_while(|x| x.0 <= *a_k) {
+            for (_, b_v) in b_sorted.iter().skip(seen).take_while(|x| x.0 <= a_k) {
                 tmp += b_v;
                 seen += 1;
             }
-            if seen == 0 { continue; }
+            if seen == 0 {
+                continue;
+            }
             let mut tmp2 = tmp.clone();
             tmp2 *= a_v;
-            
-            let entry = out.entry(*a_k).or_insert(T::zero());
+
+            let entry = out.entry(a_k).or_insert(T::zero());
             *entry += &tmp2;
         }
         tmp.set_zero();
         seen = 0;
-        for (b_k, b_v) in &b_sorted {
+        for &(b_k, b_v) in &b_sorted {
             if b_v.is_zero() {
                 continue;
             }
-            for (_, a_v) in a_sorted.iter().skip(seen).take_while(|x| x.0 < *b_k) {
+            for (_, a_v) in a_sorted.iter().skip(seen).take_while(|x| x.0 < b_k) {
                 tmp += a_v;
                 seen += 1;
             }
-            if seen == 0 { continue; }
+            if seen == 0 {
+                continue;
+            }
             let mut tmp2 = tmp.clone();
             tmp2 *= b_v;
-            
-            let entry = out.entry(*b_k).or_insert(T::zero());
+
+            let entry = out.entry(b_k).or_insert(T::zero());
             *entry += &tmp2;
         }
         a.values = out;
@@ -233,34 +237,43 @@ where
         let a_sorted: Vec<(isize, &T)> = a.iter_enumerate().collect();
         let b_sorted: Vec<(isize, &T)> = b.iter_enumerate().collect();
         let max_value = isize::min(a_sorted.last().unwrap().0, b_sorted.last().unwrap().0);
-        let mut out: FnvHashMap<isize, _> = FnvHashMap::with_capacity_and_hasher(a_len.min(b_len), Default::default());
+        let mut out: FnvHashMap<isize, _> =
+            FnvHashMap::with_capacity_and_hasher(a_len.min(b_len), Default::default());
         let mut tmp = T::one();
         let mut seen = 0;
         for &(a_k, a_v) in &a_sorted {
-            if a_k > max_value || a_v.is_zero() { continue; }
+            if a_k > max_value || a_v.is_zero() {
+                continue;
+            }
             for (_, b_v) in b_sorted.iter().skip(seen).take_while(|x| x.0 <= a_k) {
                 tmp -= b_v;
                 seen += 1;
             }
-            if tmp.is_zero() { continue; }
+            if tmp.is_zero() {
+                continue;
+            }
             let mut tmp2 = tmp.clone();
             tmp2 *= a_v;
-            
+
             let entry = out.entry(a_k).or_insert(T::zero());
             *entry += &tmp2;
         }
         tmp.set_one();
         seen = 0;
         for &(b_k, b_v) in &b_sorted {
-            if b_k > max_value || b_v.is_zero() { continue; }
+            if b_k > max_value || b_v.is_zero() {
+                continue;
+            }
             for (_, a_v) in a_sorted.iter().skip(seen).take_while(|x| x.0 < b_k) {
                 tmp -= a_v;
                 seen += 1;
             }
-            if tmp.is_zero() { continue; }
+            if tmp.is_zero() {
+                continue;
+            }
             let mut tmp2 = tmp.clone();
             tmp2 *= b_v;
-            
+
             let entry = out.entry(b_k).or_insert(T::zero());
             *entry += &tmp2;
         }

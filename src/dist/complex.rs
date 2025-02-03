@@ -331,7 +331,9 @@ where
         tmp.set_one();
         let mut seen = 0;
         for (a_k, a_v) in a.values.iter() {
-            if *a_k > max_value { break; }
+            if *a_k > max_value {
+                break;
+            }
             for (_, b_v) in b.values.iter().skip(seen).take_while(|x| x.0 <= *a_k) {
                 tmp -= b_v;
                 seen += 1;
@@ -346,7 +348,9 @@ where
         tmp.set_one();
         seen = 0;
         for (b_k, b_v) in b.values.iter() {
-            if *b_k > max_value { break; }
+            if *b_k > max_value {
+                break;
+            }
             for (_, a_v) in a.values.iter().skip(seen).take_while(|x| x.0 < *b_k) {
                 tmp -= a_v;
                 seen += 1;

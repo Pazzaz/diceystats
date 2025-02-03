@@ -285,7 +285,9 @@ where
                 tmp += b_v;
                 seen += 1;
             }
-            if seen == 0 { continue; }
+            if seen == 0 {
+                continue;
+            }
             let mut tmp2 = tmp.clone();
             tmp2 *= a_v;
             buffer[(a_k - min_value) as usize] += &tmp2;
@@ -297,7 +299,9 @@ where
                 tmp += a_v;
                 seen += 1;
             }
-            if seen == 0 { continue; }
+            if seen == 0 {
+                continue;
+            }
             let mut tmp2 = tmp.clone();
             tmp2 *= b_v;
             buffer[(b_k - min_value) as usize] += &tmp2;
@@ -322,7 +326,9 @@ where
         let mut tmp = T::one();
         let mut seen = 0;
         for (a_k, a_v) in self.iter_enumerate() {
-            if a_k > max_value { break; }
+            if a_k > max_value {
+                break;
+            }
             for (_, b_v) in other.iter_enumerate().skip(seen).take_while(|x| x.0 <= a_k) {
                 tmp -= b_v;
                 seen += 1;
@@ -334,7 +340,9 @@ where
         tmp.set_one();
         seen = 0;
         for (b_k, b_v) in other.iter_enumerate() {
-            if b_k > max_value { break; }
+            if b_k > max_value {
+                break;
+            }
             for (_, a_v) in self.iter_enumerate().skip(seen).take_while(|x| x.0 < b_k) {
                 tmp -= a_v;
                 seen += 1;
