@@ -2,7 +2,7 @@
 name = "diceystats"
 description = "Library to parse and interact with dice formulas"
 authors = ["Pazzaz <pazzaz.sundqvist@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 keywords = ["random", "dice"]
 license = "MIT"
