@@ -1,7 +1,13 @@
 [package]
 name = "diceystats"
+description = "Library to parse and interact with dice formulas"
+authors = ["Pazzaz <pazzaz.sundqvist@gmail.com>"]
 version = "0.1.0"
 edition = "2024"
+keywords = ["random", "dice"]
+license = "MIT"
+homepage = "https://github.com/Pazzaz/diceystats"
+repository = "https://github.com/Pazzaz/diceystats"
 
 [dependencies]
 num = "0.4.3"
