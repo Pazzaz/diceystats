@@ -5,7 +5,7 @@
 //!   distribution is sparse, e.g. `d2*10000`.
 //! - [`SparseDist`], uses a [`HashMap`](std::collections::HashMap) to store
 //!   probabilites.
-//! - [`WeirdDist`]. uses a [`Vec`] to store probabilites, in a sparse way.
+//! - [`SortedDist`]. uses a [`Vec`] to store probabilites, in a sparse way.
 
 use std::{
     cmp::Ordering,
@@ -14,10 +14,9 @@ use std::{
 
 use num::{FromPrimitive, Num};
 
-mod complex;
 mod dense;
+mod sorted;
 mod sparse;
-pub use complex::WeirdDist;
 pub use dense::DenseDist;
 use rand::{
     distr::{
@@ -26,6 +25,7 @@ use rand::{
     },
     prelude::Distribution,
 };
+pub use sorted::SortedDist;
 pub use sparse::SparseDist;
 
 use crate::dices::Evaluator;

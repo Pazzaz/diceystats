@@ -10,13 +10,13 @@ use crate::dices::Evaluator;
 
 use super::{AsRand, Dist};
 
-/// A discrete distribution of outcomes, stored sparsely in a [`Vec`].
+/// A discrete distribution of outcomes, stored sparsely in a sorted [`Vec`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct WeirdDist<T> {
+pub struct SortedDist<T> {
     values: Vec<(isize, T)>,
 }
 
-impl<T> WeirdDist<T> {
+impl<T> SortedDist<T> {
     fn correct(&self) -> bool {
         for i in self.values.windows(2) {
             if i[0].0 >= i[1].0 {
@@ -27,7 +27,7 @@ impl<T> WeirdDist<T> {
     }
 
     fn new() -> Self {
-        WeirdDist { values: Vec::new() }
+        SortedDist { values: Vec::new() }
     }
 
     fn get_index(&self, i: isize) -> Result<usize, usize> {
@@ -65,7 +65,7 @@ impl<T> WeirdDist<T> {
     }
 }
 
-impl<'a, T> Dist<'a, T> for WeirdDist<T>
+impl<'a, T> Dist<'a, T> for SortedDist<T>
 where
     for<'b> T: 'a
         + Num
@@ -77,7 +77,7 @@ where
         + AddAssign<&'b T>,
 {
     fn evaluator() -> impl Evaluator<Self> {
-        WeirdDistEvaluator {}
+        SortedDistEvaluator {}
     }
 
     fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
@@ -103,19 +103,19 @@ where
         for i in min..=max {
             out.push((i, T::one() / T::from_usize(values).unwrap()));
         }
-        let out = WeirdDist { values: out };
+        let out = SortedDist { values: out };
         debug_assert!(out.correct());
         out
     }
 
     fn new_constant(n: isize) -> Self {
-        let out = WeirdDist { values: vec![(n, T::one())] };
+        let out = SortedDist { values: vec![(n, T::one())] };
         debug_assert!(out.correct());
         out
     }
 }
 
-impl<'a, T> AsRand<'a, T> for WeirdDist<T> where
+impl<'a, T> AsRand<'a, T> for SortedDist<T> where
     for<'b> T: 'a
         + Num
         + FromPrimitive
@@ -129,7 +129,7 @@ impl<'a, T> AsRand<'a, T> for WeirdDist<T> where
 {
 }
 
-impl<T> WeirdDist<T>
+impl<T> SortedDist<T>
 where
     for<'a> T: Num + MulAssign<&'a T>,
 {
@@ -147,9 +147,9 @@ where
     }
 }
 
-pub(crate) struct WeirdDistEvaluator;
+pub(crate) struct SortedDistEvaluator;
 
-impl<T> Evaluator<WeirdDist<T>> for WeirdDistEvaluator
+impl<T> Evaluator<SortedDist<T>> for SortedDistEvaluator
 where
     for<'b> T: Num
         + FromPrimitive
@@ -161,18 +161,18 @@ where
 {
     const CUSTOM_MULTI_ADD: bool = true;
 
-    fn dice(&mut self, d: usize) -> WeirdDist<T> {
-        WeirdDist::new_uniform(1, d as isize)
+    fn dice(&mut self, d: usize) -> SortedDist<T> {
+        SortedDist::new_uniform(1, d as isize)
     }
 
-    fn constant(&mut self, n: isize) -> WeirdDist<T> {
-        WeirdDist::new_constant(n)
+    fn constant(&mut self, n: isize) -> SortedDist<T> {
+        SortedDist::new_constant(n)
     }
 
-    fn multi_add_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
-        let mut out1: WeirdDist<T> = WeirdDist::new();
-        let mut out2: WeirdDist<T> = WeirdDist::new();
-        let mut out_final: WeirdDist<T> = WeirdDist::new();
+    fn multi_add_inplace(&mut self, a: &mut SortedDist<T>, b: &SortedDist<T>) {
+        let mut out1: SortedDist<T> = SortedDist::new();
+        let mut out2: SortedDist<T> = SortedDist::new();
+        let mut out_final: SortedDist<T> = SortedDist::new();
 
         out2.insert(0, T::one());
 
@@ -217,14 +217,14 @@ where
         *a = out_final;
     }
 
-    fn negate_inplace(&mut self, a: &mut WeirdDist<T>) {
+    fn negate_inplace(&mut self, a: &mut SortedDist<T>) {
         a.values = a.values.drain(..).map(|(k, v)| (-k, v)).collect();
         a.values.reverse();
         debug_assert!(a.correct());
     }
 
-    fn add_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
-        let mut out = WeirdDist::new();
+    fn add_inplace(&mut self, a: &mut SortedDist<T>, b: &SortedDist<T>) {
+        let mut out = SortedDist::new();
         for (a_k, a_v) in a.values.iter() {
             for (b_k, b_v) in b.values.iter() {
                 let mut tmp = a_v.clone();
@@ -241,7 +241,7 @@ where
         debug_assert!(a.correct());
     }
 
-    fn mul_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
+    fn mul_inplace(&mut self, a: &mut SortedDist<T>, b: &SortedDist<T>) {
         if b.values.len() == 1 {
             a.mul_constant(b.values[0].0);
         } else if a.values.len() == 1 {
@@ -249,7 +249,7 @@ where
             *a = b.clone();
             a.mul_constant(a_k);
         } else {
-            let mut out = WeirdDist::new();
+            let mut out = SortedDist::new();
             for (a_k, a_v) in a.values.iter() {
                 for (b_k, b_v) in b.values.iter() {
                     let mut tmp = a_v.clone();
@@ -267,8 +267,8 @@ where
         }
     }
 
-    fn sub_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
-        let mut out = WeirdDist::new();
+    fn sub_inplace(&mut self, a: &mut SortedDist<T>, b: &SortedDist<T>) {
+        let mut out = SortedDist::new();
         for (a_k, a_v) in a.values.iter() {
             for (b_k, b_v) in b.values.iter() {
                 let mut tmp = a_v.clone();
@@ -286,8 +286,8 @@ where
     }
 
     // Same as `min_inplace` but uses `take_while`
-    fn max_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
-        let mut out = WeirdDist::new();
+    fn max_inplace(&mut self, a: &mut SortedDist<T>, b: &SortedDist<T>) {
+        let mut out = SortedDist::new();
         let mut tmp = T::zero();
         let mut seen = 0;
         for (a_k, a_v) in a.values.iter() {
@@ -321,12 +321,12 @@ where
     }
 
     // Same as `max_inplace` but uses `skip_while`
-    fn min_inplace(&mut self, a: &mut WeirdDist<T>, b: &WeirdDist<T>) {
+    fn min_inplace(&mut self, a: &mut SortedDist<T>, b: &SortedDist<T>) {
         let sl = a.max_value();
         let ol = b.max_value();
         let max_value = isize::min(sl, ol);
 
-        let mut out = WeirdDist::new();
+        let mut out = SortedDist::new();
         let mut tmp = T::zero();
         tmp.set_one();
         let mut seen = 0;

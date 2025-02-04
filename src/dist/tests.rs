@@ -5,7 +5,7 @@ use rand_chacha::ChaCha20Rng;
 extern crate test;
 use crate::{
     DiceFormula,
-    dist::{DenseDist, Dist, SparseDist, WeirdDist},
+    dist::{DenseDist, Dist, SortedDist, SparseDist},
 };
 use test::Bencher;
 
@@ -42,7 +42,7 @@ macro_rules! dist_bench {
         fn $f3(b: &mut Bencher) {
             let yep: DiceFormula = $s.parse().unwrap();
             b.iter(|| {
-                let res: WeirdDist<$t> = yep.dist();
+                let res: SortedDist<$t> = yep.dist();
                 test::black_box(res);
             });
         }
@@ -51,7 +51,7 @@ macro_rules! dist_bench {
         fn $f4() {
             let yep: DiceFormula = $s.parse().unwrap();
             let res1: DenseDist<$t> = yep.dist();
-            let res2: WeirdDist<$t> = yep.dist();
+            let res2: SortedDist<$t> = yep.dist();
             let res3: SparseDist<$t> = yep.dist();
             check_eq!(res1.mean(), res2.mean(), $t);
             check_eq!(res2.mean(), res3.mean(), $t);
@@ -64,7 +64,7 @@ dist_bench!(
     BigRational,
     complicated_dense,
     complicated_space,
-    complicated_weird,
+    complicated_sorted,
     complicated_eq
 );
 dist_bench!(
@@ -72,16 +72,23 @@ dist_bench!(
     BigRational,
     eval_6dx6d_dense,
     eval_6dx6d_space,
-    eval_6dx6d_weird,
+    eval_6dx6d_sorted,
     eval_6dx6d_eq
 );
-dist_bench!("d2*10000", BigRational, large_dense, large_space, large_weird, large_eq);
+dist_bench!(
+    "d2*10000",
+    BigRational,
+    large_mul_dense,
+    large_mul_space,
+    large_mul_sorted,
+    large_mul_eq
+);
 dist_bench!(
     "d30xd30",
     f64,
     f64_d30xd30_dense,
     f64_d30xd30_space,
-    f64_d30xd30_weird,
+    f64_d30xd30_sorted,
     f64_d30xd30_eq
 );
 dist_bench!(
@@ -89,7 +96,7 @@ dist_bench!(
     f64,
     many_additions_dense,
     many_additions_space,
-    many_additions_weird,
+    many_additions_sorted,
     many_additions_eq
 );
 dist_bench!(
@@ -97,7 +104,7 @@ dist_bench!(
     f64,
     many_subs_dense,
     many_subs_space,
-    many_subs_weird,
+    many_subs_sorted,
     many_subs_eq
 );
 dist_bench!(
@@ -105,7 +112,7 @@ dist_bench!(
     f64,
     many_multiplications_dense,
     many_multiplications_space,
-    many_multiplications_weird,
+    many_multiplications_sorted,
     many_multiplications_eq
 );
 dist_bench!(
@@ -113,7 +120,7 @@ dist_bench!(
     f64,
     negative_mul_dense,
     negative_mul_space,
-    negative_mul_weird,
+    negative_mul_sorted,
     negative_mul_eq
 );
 dist_bench!(
@@ -121,23 +128,23 @@ dist_bench!(
     BigRational,
     large_max_dense,
     large_max_space,
-    large_max_weird,
+    large_max_sorted,
     large_max_eq
 );
 dist_bench!(
     "max(d15*d14, d13*d16)",
     f64,
-    large_max_float_dense,
-    large_max_float_space,
-    large_max_float_weird,
-    large_max_float_eq
+    f64_large_max_dense,
+    f64_large_max_space,
+    f64_large_max_sorted,
+    f64_large_max_eq
 );
 dist_bench!(
     "min(d15*d14, d13*d16)",
     BigRational,
     large_min_dense,
     large_min_space,
-    large_min_weird,
+    large_min_sorted,
     large_min_eq
 );
 
@@ -149,7 +156,7 @@ fn dist_random() {
         // being formatted and parsed into a new expression.
         let a = DiceFormula::random(&mut rng, 2, 3);
         let dist1: DenseDist<BigRational> = a.dist();
-        let dist2: WeirdDist<BigRational> = a.dist();
+        let dist2: SortedDist<BigRational> = a.dist();
         let dist3: SparseDist<BigRational> = a.dist();
         println!("{:?}", a);
         assert_eq!(dist1.mean(), dist2.mean(), "{a}");

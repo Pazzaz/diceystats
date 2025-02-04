@@ -49,6 +49,7 @@
 //! use diceystats::dist::SparseDist;
 //!
 //! let sparse_dist: SparseDist<BigRational> = d4_d5_d6.dist();
+//! assert!(sparse_dist.chance(1).is_none());
 //! ```
 //!
 //! The library also supports "negative dice", but the library will fail if
@@ -63,7 +64,7 @@
 //!
 //! # Performance
 //! An attempt has been made to make the library reasonably fast, though
-//! the use of generics makes low level optimisations hard. Calculating
+//! the use of generics limits how much we can overoptimize. Calculating
 //! probability distributions, the most expensive operation, can be done in
 //! multiple ways with different performance implications. See [dist] for more
 //! information.
