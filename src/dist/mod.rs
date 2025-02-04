@@ -200,7 +200,7 @@ where
 /// [`rand`]).
 ///
 /// In contrast to `Dist`, this trait requires the probability type `T` to
-/// implement [`SampleUniform`] and [`Default`].
+/// implement [`SampleUniform`].
 pub trait AsRand<'a, T>: Dist<'a, T>
 where
     for<'b> T: 'a
