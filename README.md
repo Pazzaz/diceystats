@@ -1,2 +1,2 @@
 # diceystats
-This crate is used to sample from and analyze dice formulas which use [dice notation](https://en.wikipedia.org/wiki/Dice_notation), in the style of Dungeons and Dragons. For more info, read the documentation.
+This crate is used to sample from and analyze dice formulas which use [dice notation](https://en.wikipedia.org/wiki/Dice_notation), in the style of Dungeons and Dragons. For more info, read [the documentation](https://docs.rs/diceystats/latest/diceystats/).
