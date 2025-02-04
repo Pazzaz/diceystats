@@ -158,8 +158,7 @@ fn dist_random() {
         let dist1: DenseDist<BigRational> = a.dist();
         let dist2: SortedDist<BigRational> = a.dist();
         let dist3: SparseDist<BigRational> = a.dist();
-        println!("{:?}", a);
-        assert_eq!(dist1.mean(), dist2.mean(), "{a}");
-        assert_eq!(dist2.mean(), dist3.mean(), "{a}");
+        assert_eq!(dist1.mean(), dist2.mean(), "{a} : {:?}", a);
+        assert_eq!(dist2.mean(), dist3.mean(), "{a} : {:?}", a);
     }
 }
