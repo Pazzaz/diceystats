@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-fnv = "1.0.7"
 num = "0.4.3"
 peg = "0.8.4"
 rand = "0.9"

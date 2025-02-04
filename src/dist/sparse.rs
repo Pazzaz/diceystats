@@ -1,9 +1,7 @@
 use std::{
-    mem,
-    ops::{AddAssign, MulAssign, SubAssign},
+    collections::HashMap, mem, ops::{AddAssign, MulAssign, SubAssign}
 };
 
-use fnv::FnvHashMap;
 use num::{FromPrimitive, Num};
 use rand::distr::{uniform::SampleUniform, weighted::Weight};
 
@@ -15,7 +13,7 @@ use super::{AsRand, Dist};
 /// [`HashMap`](std::collections::HashMap).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseDist<T> {
-    values: FnvHashMap<isize, T>,
+    values: HashMap<isize, T>,
 }
 
 impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Dist<'a, T> for SparseDist<T>
@@ -47,7 +45,7 @@ where
     fn new_uniform(min: isize, max: isize) -> Self {
         debug_assert!(min <= max);
         let values = (max - min + 1) as usize;
-        let mut out = FnvHashMap::with_capacity_and_hasher(values, Default::default());
+        let mut out = HashMap::with_capacity(values);
         for i in min..=max {
             out.insert(i, T::one() / T::from_usize(values).unwrap());
         }
@@ -55,7 +53,7 @@ where
     }
 
     fn new_constant(n: isize) -> Self {
-        let mut out = FnvHashMap::with_capacity_and_hasher(1, Default::default());
+        let mut out = HashMap::with_capacity(1);
         out.insert(n, T::one());
         SparseDist { values: out }
     }
@@ -96,12 +94,9 @@ where
             .collect();
         a_values.sort_by_key(|x| x.0);
 
-        let mut out1: FnvHashMap<isize, T> =
-            FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
-        let mut out2: FnvHashMap<isize, T> =
-            FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
-        let mut out_final: FnvHashMap<isize, T> =
-            FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
+        let mut out1: HashMap<isize, T> = HashMap::with_capacity(a_len * b_len);
+        let mut out2: HashMap<isize, T> = HashMap::with_capacity(a_len * b_len);
+        let mut out_final: HashMap<isize, T> = HashMap::with_capacity(a_len * b_len);
 
         out2.insert(0, T::one());
 
@@ -142,7 +137,7 @@ where
     fn add_inplace(&mut self, a: &mut SparseDist<T>, b: &SparseDist<T>) {
         let a_len = a.values.len();
         let b_len = b.values.len();
-        let mut out = FnvHashMap::with_capacity_and_hasher(a_len + b_len, Default::default());
+        let mut out = HashMap::with_capacity(a_len + b_len);
         for (&a_k, a_v) in a.values.iter() {
             for (&b_k, b_v) in b.values.iter() {
                 let entry = out.entry(a_k + b_k).or_insert(T::zero());
@@ -157,7 +152,7 @@ where
     fn mul_inplace(&mut self, a: &mut SparseDist<T>, b: &SparseDist<T>) {
         let a_len = a.values.len();
         let b_len = b.values.len();
-        let mut out = FnvHashMap::with_capacity_and_hasher(a_len * b_len, Default::default());
+        let mut out = HashMap::with_capacity(a_len * b_len);
         for (&a_k, a_v) in a.values.iter() {
             for (&b_k, b_v) in b.values.iter() {
                 let entry = out.entry(a_k * b_k).or_insert(T::zero());
@@ -172,7 +167,7 @@ where
     fn sub_inplace(&mut self, a: &mut SparseDist<T>, b: &SparseDist<T>) {
         let a_len = a.values.len();
         let b_len = b.values.len();
-        let mut out = FnvHashMap::with_capacity_and_hasher(a_len + b_len, Default::default());
+        let mut out = HashMap::with_capacity(a_len + b_len);
         for (&a_k, a_v) in a.values.iter() {
             for (&b_k, b_v) in b.values.iter() {
                 let entry = out.entry(a_k - b_k).or_insert(T::zero());
@@ -189,7 +184,7 @@ where
         let b_len = b.values.len();
         let a_sorted: Vec<(isize, &T)> = a.iter_enumerate().collect();
         let b_sorted: Vec<(isize, &T)> = b.iter_enumerate().collect();
-        let mut out = FnvHashMap::with_capacity_and_hasher(a_len.min(b_len), Default::default());
+        let mut out = HashMap::with_capacity(a_len.min(b_len));
         let mut tmp = T::zero();
         let mut seen = 0;
         for &(a_k, a_v) in &a_sorted {
@@ -237,8 +232,7 @@ where
         let a_sorted: Vec<(isize, &T)> = a.iter_enumerate().collect();
         let b_sorted: Vec<(isize, &T)> = b.iter_enumerate().collect();
         let max_value = isize::min(a_sorted.last().unwrap().0, b_sorted.last().unwrap().0);
-        let mut out: FnvHashMap<isize, _> =
-            FnvHashMap::with_capacity_and_hasher(a_len.min(b_len), Default::default());
+        let mut out = HashMap::with_capacity(a_len.min(b_len));
         let mut tmp = T::one();
         let mut seen = 0;
         for &(a_k, a_v) in &a_sorted {
