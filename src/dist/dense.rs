@@ -117,7 +117,7 @@ where
     /// let expr1: DenseDist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
     /// let expr2: DenseDist<_> = "d4+d6".parse::<DiceFormula>().unwrap().dist();
     /// let d: BigRational = expr1.distance(&expr2);
-    /// assert_eq!(d, "25/54".parse().unwrap())
+    /// assert_eq!(d.to_string(), "25/54")
     /// ```
     fn distance(&self, other: &DenseDist<T>) -> T {
         let mut d = T::zero();
@@ -163,7 +163,7 @@ where
     /// let expr1: DenseDist<_> = "d4xd3".parse::<DiceFormula>().unwrap().dist();
     /// let expr2: DenseDist<_> = "d4+d6".parse::<DiceFormula>().unwrap().dist();
     /// let d: BigRational = expr1.distance_max(&expr2);
-    /// assert_eq!(d, "1/12".parse().unwrap())
+    /// assert_eq!(d.to_string(), "1/12");
     /// ```
     fn distance_max(&self, other: &DenseDist<T>) -> T {
         let mut d: T = T::zero();

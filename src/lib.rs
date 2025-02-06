@@ -12,15 +12,13 @@
 //!     dist::{DenseDist, Dist},
 //!     roll,
 //! };
-//! use num::BigRational;
-//! use rand::thread_rng;
 //!
 //! // Roll a four side die and a five sided die, sum the result.
 //! // Then roll that number of six sided dice, and sum those rolls.
 //! let example = "(d4 + d5)xd6";
 //!
 //! // We can roll the dice and calculate the result
-//! let result = roll(example, &mut thread_rng()).unwrap();
+//! let result: isize = roll(example, &mut rand::rng()).unwrap();
 //! assert!((2..=54).contains(&result));
 //!
 //! // Or to do more advanced things we can parse it into a `DiceFormula`
@@ -31,8 +29,10 @@
 //! assert!((dist.mean() - 19.25).abs() <= 0.01);
 //!
 //! // If we want to be more precise we can use arbitrary precision numbers
+//! use num::BigRational;
+//!
 //! let dist: DenseDist<BigRational> = d4_d5_d6.dist();
-//! assert_eq!(dist.mean(), "77/4".parse().unwrap());
+//! assert_eq!(dist.mean().to_string(), "77/4");
 //! ```
 //!
 //! There are multiple ways to represent distributions which are useful in
@@ -52,14 +52,14 @@
 //! assert!(sparse_dist.chance(1).is_none());
 //! ```
 //!
-//! The library also supports "negative dice", but the library will fail if
+//! The library also supports "negative dice", but will detect if
 //! there's a chance of rolling a negative *amount* of dice
 //!
 //! ```
-//! use diceystats::{dices::DiceFormula, dist::Dist, roll};
-//! use rand::thread_rng;
+//! use diceystats::{dices::DiceParseError, roll};
 //!
-//! roll("(d4 - d4)xd20", &mut thread_rng()).is_err();
+//! let result = roll("(d4 - d4)xd20", &mut rand::rng());
+//! assert_eq!(result, Err(DiceParseError::NegativeRolls));
 //! ```
 //!
 //! # Performance
@@ -83,9 +83,7 @@ use rand::{Rng, prelude::Distribution};
 /// Returns `None` if the expression is invalid.
 ///
 /// ```
-/// use rand::thread_rng;
-///
-/// let x: isize = diceystats::roll("d10 + d5", &mut thread_rng()).unwrap();
+/// let x: isize = diceystats::roll("d10 + d5", &mut rand::rng()).unwrap();
 /// ```
 pub fn roll<R: Rng + ?Sized>(s: &str, rng: &mut R) -> Result<isize, DiceParseError> {
     DiceFormula::from_str(s).map(|x| x.sample(rng))

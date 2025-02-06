@@ -4,7 +4,7 @@ use peg::str::LineCol;
 
 use super::DiceFormula;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum DiceParseError {
     Parse(peg::error::ParseError<LineCol>),
     NegativeRolls,

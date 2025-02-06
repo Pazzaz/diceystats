@@ -359,7 +359,7 @@ impl DiceFormula {
     /// let expr: DiceFormula = "d10 * d4".parse().unwrap();
     /// let fast_dist: DenseDist<f64> = expr.dist();
     /// let exact_dist: DenseDist<BigRational> = expr.dist();
-    /// assert_eq!(exact_dist.mean(), "55/4".parse().unwrap());
+    /// assert_eq!(exact_dist.mean().to_string(), "55/4");
     /// ```
     pub fn dist<'a, T, D: Dist<'a, T>>(&self) -> D
     where
