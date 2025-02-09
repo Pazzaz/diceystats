@@ -295,6 +295,9 @@ where
                 tmp += b_v;
                 seen += 1;
             }
+            if seen == 0 {
+                continue;
+            }
             let mut tmp2 = tmp.clone();
             tmp2 *= a_v;
             match out.get_mut_or_insert(*a_k) {
@@ -308,6 +311,9 @@ where
             for (_, a_v) in a.values.iter().skip(seen).take_while(|x| x.0 < *b_k) {
                 tmp += a_v;
                 seen += 1;
+            }
+            if seen == 0 {
+                continue;
             }
             let mut tmp2 = tmp.clone();
             tmp2 *= b_v;
