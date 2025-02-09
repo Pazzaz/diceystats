@@ -149,7 +149,37 @@ dist_bench!(
 );
 
 #[test]
-fn dist_random() {
+fn dist_random_min_value() {
+    let mut rng = ChaCha20Rng::seed_from_u64(123);
+    for _ in 0..200 {
+        // Generate a random expression and check if its distribution is the same after
+        // being formatted and parsed into a new expression.
+        let a = DiceFormula::random(&mut rng, 2, 3);
+        let dist1: DenseDist<BigRational> = a.dist();
+        let dist2: SortedDist<BigRational> = a.dist();
+        let dist3: SparseDist<BigRational> = a.dist();
+        assert_eq!(dist1.min_value(), dist2.min_value(), "{a} : {:?}", a);
+        assert_eq!(dist2.min_value(), dist3.min_value(), "{a} : {:?}", a);
+    }
+}
+
+#[test]
+fn dist_random_max_value() {
+    let mut rng = ChaCha20Rng::seed_from_u64(123);
+    for _ in 0..200 {
+        // Generate a random expression and check if its distribution is the same after
+        // being formatted and parsed into a new expression.
+        let a = DiceFormula::random(&mut rng, 2, 3);
+        let dist1: DenseDist<BigRational> = a.dist();
+        let dist2: SortedDist<BigRational> = a.dist();
+        let dist3: SparseDist<BigRational> = a.dist();
+        assert_eq!(dist1.max_value(), dist2.max_value(), "{a} : {:?}", a);
+        assert_eq!(dist2.max_value(), dist3.max_value(), "{a} : {:?}", a);
+    }
+}
+
+#[test]
+fn dist_random_mean() {
     let mut rng = ChaCha20Rng::seed_from_u64(123);
     for _ in 0..200 {
         // Generate a random expression and check if its distribution is the same after
