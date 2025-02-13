@@ -65,10 +65,9 @@ impl<T> SortedDist<T> {
     }
 }
 
-impl<'a, T> Dist<'a, T> for SortedDist<T>
+impl<T> Dist<T> for SortedDist<T>
 where
-    for<'b> T: 'a
-        + Num
+    for<'b> T: Num
         + FromPrimitive
         + PartialOrd
         + Clone
@@ -80,7 +79,10 @@ where
         SortedDistEvaluator {}
     }
 
-    fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+    fn iter_enumerate<'a>(&'a self) -> impl Iterator<Item = (isize, &'a T)>
+    where
+        T: 'a,
+    {
         self.values.iter().map(|x| (x.0, &x.1))
     }
 
@@ -92,7 +94,7 @@ where
         self.values.last().unwrap().0
     }
 
-    fn chance(&'a self, n: isize) -> Option<&'a T> {
+    fn chance(&self, n: isize) -> Option<&T> {
         self.get_index(n).map(|x| &self.values[x].1).ok()
     }
 
@@ -115,9 +117,8 @@ where
     }
 }
 
-impl<'a, T> AsRand<'a, T> for SortedDist<T> where
-    for<'b> T: 'a
-        + Num
+impl<T> AsRand<T> for SortedDist<T> where
+    for<'b> T: Num
         + FromPrimitive
         + PartialOrd
         + Clone

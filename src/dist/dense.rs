@@ -35,10 +35,9 @@ impl<T> DenseDist<T> {
     }
 }
 
-impl<'a, T> AsRand<'a, T> for DenseDist<T>
+impl<T> AsRand<T> for DenseDist<T>
 where
-    for<'b> T: 'a
-        + Num
+    for<'b> T: Num
         + FromPrimitive
         + PartialOrd
         + Clone
@@ -49,15 +48,14 @@ where
         + AddAssign<&'b T>,
 {
     #[must_use]
-    fn to_rand_distribution(&'a self) -> impl Distribution<isize> {
+    fn to_rand_distribution(&self) -> impl Distribution<isize> {
         WeightedIndex::new(&self.values).unwrap().map(move |x| x as isize + self.offset)
     }
 }
 
-impl<'a, T> Dist<'a, T> for DenseDist<T>
+impl<T> Dist<T> for DenseDist<T>
 where
-    for<'b> T: 'a
-        + Num
+    for<'b> T: Num
         + FromPrimitive
         + PartialOrd
         + Clone
@@ -74,7 +72,10 @@ where
         DenseDist { values, offset: n }
     }
 
-    fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+    fn iter_enumerate<'a>(&'a self) -> impl Iterator<Item = (isize, &'a T)>
+    where
+        T: 'a,
+    {
         self.values.iter().enumerate().map(|(x_i, x)| (x_i as isize + self.offset, x))
     }
 

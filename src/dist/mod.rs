@@ -34,10 +34,9 @@ use crate::dices::Evaluator;
 pub mod tests;
 
 /// Methods for finite discrete probability distributions
-pub trait Dist<'a, T>
+pub trait Dist<T>
 where
-    for<'b> T: 'a
-        + Num
+    for<'b> T: Num
         + FromPrimitive
         + PartialOrd
         + Clone
@@ -55,21 +54,23 @@ where
     fn evaluator() -> impl Evaluator<Self>;
 
     /// Iteratete through the distribution's support, in order.
-    fn iter_enumerate(&'a self) -> impl Iterator<Item = (isize, &'a T)>;
+    fn iter_enumerate<'a>(&'a self) -> impl Iterator<Item = (isize, &'a T)>
+    where
+        T: 'a;
 
     fn min_value(&self) -> isize;
     fn max_value(&self) -> isize;
 
     /// The chance of outcome `n`. Returns `None` if `n` is not part of `self`,
     /// which means its chance is 0.
-    fn chance(&'a self, n: isize) -> Option<&'a T> {
+    fn chance(&self, n: isize) -> Option<&T> {
         self.iter_enumerate()
             .take_while(|x| x.0 <= n)
             .find_map(|x| if x.0 == n { Some(x.1) } else { None })
     }
 
     /// The expected value of the distribution.
-    fn mean(&'a self) -> T {
+    fn mean(&self) -> T {
         let mut out = T::zero();
         for (i, v) in self.iter_enumerate() {
             let mut thing = T::from_isize(i).unwrap();
@@ -80,7 +81,7 @@ where
     }
 
     /// The [variance](https://en.wikipedia.org/wiki/Variance) of the distribution
-    fn variance(&'a self) -> T {
+    fn variance(&self) -> T {
         let mean = self.mean();
         let mut total = T::zero();
         for (i, v) in self.iter_enumerate() {
@@ -94,7 +95,7 @@ where
     }
 
     /// The [median](https://en.wikipedia.org/wiki/Median#Probability_distributions) of the distribution; an `x` such that `P(X <= m) >= 0.5` and `P(m <= X) >= 0.5`.
-    fn median(&'a self) -> isize {
+    fn median(&self) -> isize {
         let half = T::from_f64(0.5).unwrap();
         let mut total = T::zero();
         for (i, v) in self.iter_enumerate() {
@@ -108,7 +109,7 @@ where
 
     /// The modes of the distribution, i.e. the values of the distribution with
     /// the highest chance of occuring.
-    fn modes(&'a self) -> Vec<isize> {
+    fn modes(&self) -> Vec<isize> {
         let mut out = Vec::new();
         let mut best: Option<&T> = None;
         for (i, v) in self.iter_enumerate() {
@@ -123,13 +124,13 @@ where
                 None => {
                     best = Some(v);
                     out.push(i);
-                },
+                }
             }
         }
         out
     }
 
-    fn distance(&'a self, other: &'a Self) -> T {
+    fn distance(&self, other: &Self) -> T {
         let mut iter_a = self.iter_enumerate();
         let mut iter_b = other.iter_enumerate();
         let mut total: T = T::zero();
@@ -163,7 +164,7 @@ where
         total
     }
 
-    fn distance_max(&'a self, other: &'a Self) -> T {
+    fn distance_max(&self, other: &Self) -> T {
         let mut iter_a = self.iter_enumerate();
         let mut iter_b = other.iter_enumerate();
         let mut max: T = T::zero();
@@ -205,10 +206,9 @@ where
 ///
 /// In contrast to `Dist`, this trait requires the probability type `T` to
 /// implement [`SampleUniform`].
-pub trait AsRand<'a, T>: Dist<'a, T>
+pub trait AsRand<T>: Dist<T>
 where
-    for<'b> T: 'a
-        + Num
+    for<'b> T: Num
         + FromPrimitive
         + PartialOrd
         + Clone
@@ -220,7 +220,7 @@ where
 {
     /// Convert to a [`Distribution`]. Useful for sampling.
     #[must_use]
-    fn to_rand_distribution(&'a self) -> impl Distribution<isize> {
+    fn to_rand_distribution(&self) -> impl Distribution<isize> {
         let mut values = Vec::new();
         let mut chances = Vec::new();
         for a in self.iter_enumerate() {

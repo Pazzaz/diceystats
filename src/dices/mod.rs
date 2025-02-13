@@ -361,10 +361,9 @@ impl DiceFormula {
     /// let exact_dist: DenseDist<BigRational> = expr.dist();
     /// assert_eq!(exact_dist.mean().to_string(), "55/4");
     /// ```
-    pub fn dist<'a, T, D: Dist<'a, T>>(&self) -> D
+    pub fn dist<T, D: Dist<T>>(&self) -> D
     where
-        for<'b> T: 'a
-            + Num
+        for<'b> T: Num
             + FromPrimitive
             + PartialOrd
             + Clone

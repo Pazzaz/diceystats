@@ -18,7 +18,7 @@ pub struct SparseDist<T> {
     values: HashMap<isize, T>,
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone> Dist<'a, T> for SparseDist<T>
+impl<T: Num + FromPrimitive + PartialOrd + Clone> Dist<T> for SparseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
 {
@@ -26,7 +26,10 @@ where
         SparseDistEvaluator {}
     }
 
-    fn iter_enumerate(&self) -> impl Iterator<Item = (isize, &T)> {
+    fn iter_enumerate<'a>(&'a self) -> impl Iterator<Item = (isize, &'a T)>
+    where
+        T: 'a,
+    {
         let mut values: Vec<(isize, &T)> = self.values.iter().map(|x| (*x.0, x.1)).collect();
         values.sort_by_key(|x| x.0);
         values.into_iter()
@@ -40,7 +43,7 @@ where
         *self.values.keys().max().unwrap()
     }
 
-    fn chance(&'a self, n: isize) -> Option<&'a T> {
+    fn chance(&self, n: isize) -> Option<&T> {
         self.values.get(&n)
     }
 
@@ -61,7 +64,7 @@ where
     }
 }
 
-impl<'a, T: 'a + Num + FromPrimitive + PartialOrd + Clone + Weight + SampleUniform> AsRand<'a, T>
+impl<T: Num + FromPrimitive + PartialOrd + Clone + Weight + SampleUniform> AsRand<T>
     for SparseDist<T>
 where
     for<'b> T: MulAssign<&'b T> + SubAssign<&'b T> + AddAssign<&'b T>,
