@@ -115,11 +115,14 @@ where
                 Some(x) if x < v => {
                     best = Some(v);
                     out.clear();
-                    out.push(i)
+                    out.push(i);
                 }
                 Some(x) if x == v => out.push(i),
                 Some(_) => {}
-                None => out.push(i),
+                None => {
+                    best = Some(v);
+                    out.push(i);
+                },
             }
         }
         out
