@@ -86,6 +86,7 @@ where
         for (i, v) in self.iter_enumerate() {
             let mut v_i = T::from_isize(i).unwrap();
             v_i -= &mean;
+            v_i *= &v_i.clone();
             v_i *= v;
             total += &v_i;
         }
