@@ -30,6 +30,12 @@ impl FromStr for DiceFormula {
 peg::parser! {
     grammar list_parser() for str {
         rule number() -> usize = n:$(['0'..='9']+) {? n.parse::<usize>().or(Err("u32")) }
+        rule non_zero_number() -> usize = n:$(['0'..='9']+) {?
+            match n.parse::<usize>() {
+                Ok(x) if x != 0 => Ok(x),
+                _ => Err("u32"),
+            }
+        }
         rule list_part() -> DiceFormula = " "* e:arithmetic() " "* { e }
         pub rule arithmetic() -> DiceFormula = precedence!{
             x:(@) " "* "+" " "* y:@ { x + &y }
@@ -47,7 +53,7 @@ peg::parser! {
             "-" n:number() { DiceFormula::constant(-(n as isize)) }
             "-" e:arithmetic() { e.negate() }
             n:number() { DiceFormula::constant(n as isize) }
-            "d" n:number() { DiceFormula::dice(n) }
+            "d" n:non_zero_number() { DiceFormula::dice(n) }
             "min(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.min(&b)).unwrap() }
             "max(" l:(list_part() ++ ",") ")" { l.into_iter().reduce(|a, b| a.max(&b)).unwrap() }
             "(" " "* e:arithmetic() " "* ")" { e }
@@ -136,5 +142,22 @@ mod tests {
             let yep: DiceFormula = "d30 + (d20xd30*d43423x(d20 + d4*d32 + 43))".parse().unwrap();
             test::black_box(yep);
         });
+    }
+
+    #[test]
+    fn d0() {
+        let goal = DiceFormula::from_str("d0");
+        assert!(goal.is_err());
+    }
+    #[test]
+    fn d0_2() {
+        let goal = DiceFormula::from_str("5 + 7xd0");
+        assert!(goal.is_err());
+    }
+
+    #[test]
+    fn zeros() {
+        let goal = DiceFormula::from_str("0 + 0 * 0x0 + min(0, max(0, 0))");
+        assert!(goal.is_ok());
     }
 }
