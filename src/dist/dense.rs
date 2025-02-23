@@ -18,11 +18,15 @@ use crate::dices::Evaluator;
 
 use super::{AsRand, Dist};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// A discrete distribution of outcomes, stored densely in a [`Vec`].
 ///
 /// Probabilities have type `T`, e.g. [`f32`], [`f64`], `BigRational` etc.
 /// All distributions have finite support, represented by a [`Vec<T>`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct DenseDist<T> {
     values: Vec<T>,
     offset: isize,

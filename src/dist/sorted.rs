@@ -10,8 +10,12 @@ use crate::dices::Evaluator;
 
 use super::{AsRand, Dist};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// A discrete distribution of outcomes, stored sparsely in a sorted [`Vec`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct SortedDist<T> {
     values: Vec<(isize, T)>,
 }

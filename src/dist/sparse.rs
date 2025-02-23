@@ -11,9 +11,13 @@ use crate::dices::Evaluator;
 
 use super::{AsRand, Dist};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// A discrete distribution of outcomes, stored sparsely in a
 /// [`HashMap`](std::collections::HashMap).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct SparseDist<T> {
     values: HashMap<isize, T>,
 }

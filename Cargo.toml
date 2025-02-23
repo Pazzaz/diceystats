@@ -13,6 +13,10 @@ repository = "https://github.com/Pazzaz/diceystats"
 num = "0.4.3"
 peg = "0.8.4"
 rand = "0.9"
+serde = { version="1.0.218", optional = true, features = ["derive"]}
 
 [dev-dependencies]
 rand_chacha = "0.9"
+
+[features]
+default = ["serde"]

@@ -14,6 +14,9 @@ mod random;
 pub use random::random_formula;
 mod simplify;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// A sequence of interacting dice rolls
 ///
 /// You can also display a `DiceFormula` in a simplified form
@@ -25,12 +28,14 @@ mod simplify;
 /// assert_eq!(x.to_string(), "(d5 + d20xd5) * max(max(d4 * d4, d5), d10)x(d4 * d8)")
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct DiceFormula {
     parts: Vec<Part>,
 }
 
 // Each part of a dice expression is a node in a tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 enum Part {
     // Leaf nodes
     Dice(usize),
