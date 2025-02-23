@@ -51,7 +51,6 @@ where
         + SubAssign<&'b T>
         + AddAssign<&'b T>,
 {
-    #[must_use]
     fn to_rand_distribution(&self) -> impl Distribution<isize> {
         WeightedIndex::new(&self.values).unwrap().map(move |x| x as isize + self.offset)
     }
