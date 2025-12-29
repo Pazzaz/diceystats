@@ -220,6 +220,38 @@ impl EvaluateStage {
     }
 }
 
+// Apply some operation `f` to some value(s) on the stack
+macro_rules! apply {
+    (unary, $stack:ident, $state:ident, $f:ident) => {{
+        let aa = $stack.last_mut().unwrap();
+        $state.$f(aa);
+    }};
+
+    (binary, $stack:ident, $state:ident, $f:ident) => {{
+        let mut aa = $stack.pop().unwrap();
+        let bb = $stack.pop().unwrap();
+        $state.$f(&mut aa, &bb);
+        $stack.push(aa);
+    }};
+}
+
+// Push some evaluation stage(s) to the stack
+macro_rules! add {
+    (unary, $dice:ident, $stack:ident, $enum:ident, $a:ident) => {{
+        $stack.push(EvaluateStage::$enum);
+        $stack.push(EvaluateStage::collect_from($dice.parts[$a]));
+    }};
+    (unary_with, $dice:ident, $stack:ident, $enum:ident, $a:ident, $b:ident) => {{
+        $stack.push(EvaluateStage::$enum($b));
+        $stack.push(EvaluateStage::collect_from($dice.parts[$a]));
+    }};
+    (binary, $dice:ident, $stack:ident, $enum:ident, $a:ident, $b:ident) => {{
+        $stack.push(EvaluateStage::$enum);
+        $stack.push(EvaluateStage::collect_from($dice.parts[$a]));
+        $stack.push(EvaluateStage::collect_from($dice.parts[$b]));
+    }};
+}
+
 impl DiceFormula {
     // The last item in `self.parts` should always be the top node in the tree
     fn top_part(&self) -> Part {
@@ -236,12 +268,9 @@ impl DiceFormula {
                 EvaluateStage::Const(n) => values.push(state.constant(n)),
                 EvaluateStage::MultiAddCreate(a, b) => {
                     if Q::CUSTOM_MULTI_ADD {
-                        stack.push(EvaluateStage::MultiAddCollect);
-                        stack.push(EvaluateStage::collect_from(self.parts[a]));
-                        stack.push(EvaluateStage::collect_from(self.parts[b]));
+                        add!(binary, self, stack, MultiAddCollect, a, b);
                     } else {
-                        stack.push(EvaluateStage::MultiAddCollectPartial(b));
-                        stack.push(EvaluateStage::collect_from(self.parts[a]));
+                        add!(unary_with, self, stack, MultiAddCollectPartial, a, b);
                     }
                 }
                 EvaluateStage::MultiAddCollectPartial(b) => {
@@ -254,12 +283,10 @@ impl DiceFormula {
                 }
                 EvaluateStage::MultiAddCollect => {
                     assert!(Q::CUSTOM_MULTI_ADD);
-                    let mut aa = values.pop().unwrap();
-                    let bb = values.pop().unwrap();
-                    state.multi_add_inplace(&mut aa, &bb);
-                    values.push(aa);
+                    apply!(binary, values, state, multi_add_inplace);
                 }
                 EvaluateStage::MultiAddExtra(aa) => {
+                    assert!(!Q::CUSTOM_MULTI_ADD);
                     debug_assert!(aa != 0);
                     let mut res = values.pop().unwrap();
                     for _ in 1..aa {
@@ -268,70 +295,18 @@ impl DiceFormula {
                     }
                     values.push(res);
                 }
-                EvaluateStage::NegateCreate(a) => {
-                    stack.push(EvaluateStage::NegateCollect);
-                    stack.push(EvaluateStage::collect_from(self.parts[a]));
-                }
-                EvaluateStage::AddCreate(a, b) => {
-                    stack.push(EvaluateStage::AddCollect);
-                    stack.push(EvaluateStage::collect_from(self.parts[a]));
-                    stack.push(EvaluateStage::collect_from(self.parts[b]));
-                }
-                EvaluateStage::MulCreate(a, b) => {
-                    stack.push(EvaluateStage::MulCollect);
-                    stack.push(EvaluateStage::collect_from(self.parts[a]));
-                    stack.push(EvaluateStage::collect_from(self.parts[b]));
-                }
-                EvaluateStage::SubCreate(a, b) => {
-                    stack.push(EvaluateStage::SubCollect);
-                    stack.push(EvaluateStage::collect_from(self.parts[a]));
-                    stack.push(EvaluateStage::collect_from(self.parts[b]));
-                }
-                EvaluateStage::MinCreate(a, b) => {
-                    stack.push(EvaluateStage::MinCollect);
-                    stack.push(EvaluateStage::collect_from(self.parts[a]));
-                    stack.push(EvaluateStage::collect_from(self.parts[b]));
-                }
-                EvaluateStage::MaxCreate(a, b) => {
-                    stack.push(EvaluateStage::MaxCollect);
-                    stack.push(EvaluateStage::collect_from(self.parts[a]));
-                    stack.push(EvaluateStage::collect_from(self.parts[b]));
-                }
-                EvaluateStage::NegateCollect => {
-                    let mut aa = values.pop().unwrap();
-                    state.negate_inplace(&mut aa);
-                    values.push(aa);
-                }
-                EvaluateStage::AddCollect => {
-                    let mut aa = values.pop().unwrap();
-                    let bb = values.pop().unwrap();
-                    state.add_inplace(&mut aa, &bb);
-                    values.push(aa);
-                }
-                EvaluateStage::MulCollect => {
-                    let mut aa = values.pop().unwrap();
-                    let bb = values.pop().unwrap();
-                    state.mul_inplace(&mut aa, &bb);
-                    values.push(aa);
-                }
-                EvaluateStage::SubCollect => {
-                    let mut aa = values.pop().unwrap();
-                    let bb = values.pop().unwrap();
-                    state.sub_inplace(&mut aa, &bb);
-                    values.push(aa);
-                }
-                EvaluateStage::MinCollect => {
-                    let mut aa = values.pop().unwrap();
-                    let bb = values.pop().unwrap();
-                    state.min_inplace(&mut aa, &bb);
-                    values.push(aa);
-                }
-                EvaluateStage::MaxCollect => {
-                    let mut aa = values.pop().unwrap();
-                    let bb = values.pop().unwrap();
-                    state.max_inplace(&mut aa, &bb);
-                    values.push(aa);
-                }
+                EvaluateStage::NegateCreate(a) => add!(unary, self, stack, NegateCollect, a),
+                EvaluateStage::AddCreate(a, b) => add!(binary, self, stack, AddCollect, a, b),
+                EvaluateStage::MulCreate(a, b) => add!(binary, self, stack, MulCollect, a, b),
+                EvaluateStage::SubCreate(a, b) => add!(binary, self, stack, SubCollect, a, b),
+                EvaluateStage::MinCreate(a, b) => add!(binary, self, stack, MinCollect, a, b),
+                EvaluateStage::MaxCreate(a, b) => add!(binary, self, stack, MaxCollect, a, b),
+                EvaluateStage::NegateCollect => apply!(unary, values, state, negate_inplace),
+                EvaluateStage::AddCollect => apply!(binary, values, state, add_inplace),
+                EvaluateStage::MulCollect => apply!(binary, values, state, mul_inplace),
+                EvaluateStage::SubCollect => apply!(binary, values, state, sub_inplace),
+                EvaluateStage::MinCollect => apply!(binary, values, state, min_inplace),
+                EvaluateStage::MaxCollect => apply!(binary, values, state, max_inplace),
             };
         }
         values.pop().unwrap()
