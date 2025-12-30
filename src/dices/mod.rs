@@ -120,12 +120,14 @@ pub trait Evaluator<T> {
 
 // Finds the minimum and maximum value of a `DiceFormula`.
 struct Bounds {
-    multi_add_negative: usize,
+    // We also track whether we ever tried to `multi_add` with a negative argument, i.e. "throwing
+    // a negative number of dice".
+    multi_add_negative: bool,
 }
 
 impl Bounds {
     fn new() -> Self {
-        Bounds { multi_add_negative: 0 }
+        Bounds { multi_add_negative: false }
     }
 }
 
@@ -142,7 +144,7 @@ impl Evaluator<(isize, isize)> for Bounds {
 
     fn multi_add_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
         if a.0 < 0 {
-            self.multi_add_negative += 1;
+            self.multi_add_negative = true;
             a.0 = 0;
             if a.1 < 0 {
                 a.1 = 0;
@@ -427,14 +429,14 @@ impl DiceFormula {
 
     #[must_use]
     fn could_be_negative(&self) -> bool {
-        let mut s = Bounds { multi_add_negative: 0 };
+        let mut s = Bounds::new();
         self.traverse(&mut s);
-        s.multi_add_negative != 0
+        s.multi_add_negative
     }
 
     #[must_use]
     pub fn bounds(&self) -> (isize, isize) {
-        let mut s = Bounds { multi_add_negative: 0 };
+        let mut s = Bounds::new();
         let (a, b) = self.traverse(&mut s);
         debug_assert!(a <= b);
         (a, b)
