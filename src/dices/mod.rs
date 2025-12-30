@@ -276,7 +276,7 @@ impl DiceFormula {
                     }
                 }
                 EvaluateStage::MultiAddCollectPartial(b) => {
-                    assert!(!Q::CUSTOM_MULTI_ADD);
+                    debug_assert!(!Q::CUSTOM_MULTI_ADD);
                     let aa = Q::to_usize(values.pop().unwrap());
                     stack.push(EvaluateStage::MultiAddExtra(aa));
                     for _ in 0..aa {
@@ -284,11 +284,11 @@ impl DiceFormula {
                     }
                 }
                 EvaluateStage::MultiAddCollect => {
-                    assert!(Q::CUSTOM_MULTI_ADD);
+                    debug_assert!(Q::CUSTOM_MULTI_ADD);
                     apply!(binary, values, state, multi_add_inplace);
                 }
                 EvaluateStage::MultiAddExtra(aa) => {
-                    assert!(!Q::CUSTOM_MULTI_ADD);
+                    debug_assert!(!Q::CUSTOM_MULTI_ADD);
                     debug_assert!(aa != 0);
                     let mut res = values.pop().unwrap();
                     for _ in 1..aa {
