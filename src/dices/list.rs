@@ -37,6 +37,7 @@ impl Default for ConfigEveryTree<'_> {
 
 /// Generate every [`DiceFormula`] with parameters chosen using
 /// [`ConfigEveryTree`].
+#[must_use]
 pub fn every_tree(
     &ConfigEveryTree { height, dice, constants, bounds, print_progress }: &ConfigEveryTree,
 ) -> Vec<(DenseDist<BigRational>, DiceFormula)> {
@@ -110,7 +111,7 @@ pub fn every_tree(
             if a_bounds.1 < 0 {
                 continue;
             }
-            for (b, b_bounds, b_dist) in sorted.iter() {
+            for (b, b_bounds, b_dist) in &sorted {
                 add_if_bounded!(
                     multi_add_inplace,
                     multi_add,

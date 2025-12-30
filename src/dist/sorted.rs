@@ -143,7 +143,7 @@ where
             self.values.clear();
             self.values.push((0, T::one()));
         }
-        for (a_k, _) in self.values.iter_mut() {
+        for (a_k, _) in &mut self.values {
             *a_k *= c;
         }
         if c < 0 {
@@ -230,8 +230,8 @@ where
 
     fn add_inplace(&mut self, a: &mut SortedDist<T>, b: &SortedDist<T>) {
         let mut out = SortedDist::new();
-        for (a_k, a_v) in a.values.iter() {
-            for (b_k, b_v) in b.values.iter() {
+        for (a_k, a_v) in &a.values {
+            for (b_k, b_v) in &b.values {
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
                 match out.get_mut_or_insert(a_k + b_k) {
@@ -255,8 +255,8 @@ where
             a.mul_constant(a_k);
         } else {
             let mut out = SortedDist::new();
-            for (a_k, a_v) in a.values.iter() {
-                for (b_k, b_v) in b.values.iter() {
+            for (a_k, a_v) in &a.values {
+                for (b_k, b_v) in &b.values {
                     let mut tmp = a_v.clone();
                     tmp *= b_v;
                     match out.get_mut_or_insert(a_k * b_k) {
@@ -274,8 +274,8 @@ where
 
     fn sub_inplace(&mut self, a: &mut SortedDist<T>, b: &SortedDist<T>) {
         let mut out = SortedDist::new();
-        for (a_k, a_v) in a.values.iter() {
-            for (b_k, b_v) in b.values.iter() {
+        for (a_k, a_v) in &a.values {
+            for (b_k, b_v) in &b.values {
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
                 match out.get_mut_or_insert(a_k - b_k) {
@@ -295,7 +295,7 @@ where
         let mut out = SortedDist::new();
         let mut tmp = T::zero();
         let mut seen = 0;
-        for (a_k, a_v) in a.values.iter() {
+        for (a_k, a_v) in &a.values {
             for (_, b_v) in b.values.iter().skip(seen).take_while(|x| x.0 <= *a_k) {
                 tmp += b_v;
                 seen += 1;
@@ -312,7 +312,7 @@ where
         }
         tmp.set_zero();
         seen = 0;
-        for (b_k, b_v) in b.values.iter() {
+        for (b_k, b_v) in &b.values {
             for (_, a_v) in a.values.iter().skip(seen).take_while(|x| x.0 < *b_k) {
                 tmp += a_v;
                 seen += 1;
@@ -341,7 +341,7 @@ where
         let mut tmp = T::zero();
         tmp.set_one();
         let mut seen = 0;
-        for (a_k, a_v) in a.values.iter() {
+        for (a_k, a_v) in &a.values {
             if *a_k > max_value {
                 break;
             }
@@ -358,7 +358,7 @@ where
         }
         tmp.set_one();
         seen = 0;
-        for (b_k, b_v) in b.values.iter() {
+        for (b_k, b_v) in &b.values {
             if *b_k > max_value {
                 break;
             }

@@ -140,7 +140,7 @@ where
                     } else if i2 < i1 {
                         d += i1;
                         d -= i2;
-                    };
+                    }
                 }
                 (true, false) => {
                     d += self.chance(i).unwrap();
@@ -409,7 +409,7 @@ where
         for _ in 0..self.offset {
             source.swap_with_slice(&mut dest);
 
-            for d in dest.iter_mut() {
+            for d in &mut dest {
                 d.set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {
@@ -447,7 +447,7 @@ where
         for a in self.values.iter().skip(1) {
             source.swap_with_slice(&mut dest);
 
-            for d in dest.iter_mut() {
+            for d in &mut dest {
                 d.set_zero();
             }
             for (b_i, b) in other.values.iter().enumerate() {

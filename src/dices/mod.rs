@@ -151,7 +151,7 @@ impl Evaluator<(isize, isize)> for Bounds {
             }
         }
         let extremes = [a.0 * b.0, a.0 * b.1, a.1 * b.0, a.1 * b.1];
-        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap());
     }
 
     fn negate_inplace(&mut self, a: &mut (isize, isize)) {
@@ -159,27 +159,27 @@ impl Evaluator<(isize, isize)> for Bounds {
     }
 
     fn add_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
-        *a = (a.0 + b.0, a.1 + b.1)
+        *a = (a.0 + b.0, a.1 + b.1);
     }
 
     fn mul_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
         let extremes = [a.0 * b.0, a.0 * b.1, a.1 * b.0, a.1 * b.1];
-        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap());
     }
 
     fn sub_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
         let extremes = [a.0 - b.0, a.0 - b.1, a.1 - b.0, a.1 - b.1];
-        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap());
     }
 
     fn max_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
         let extremes = [a.0.max(b.0), a.0.max(b.1), a.1.max(b.0), a.1.max(b.1)];
-        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap());
     }
 
     fn min_inplace(&mut self, a: &mut (isize, isize), b: &(isize, isize)) {
         let extremes = [a.0.min(b.0), a.0.min(b.1), a.1.min(b.0), a.1.min(b.1)];
-        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap())
+        *a = (*extremes.iter().min().unwrap(), *extremes.iter().max().unwrap());
     }
 }
 
@@ -309,15 +309,17 @@ impl DiceFormula {
                 EvaluateStage::SubCollect => apply!(binary, values, state, sub_inplace),
                 EvaluateStage::MinCollect => apply!(binary, values, state, min_inplace),
                 EvaluateStage::MaxCollect => apply!(binary, values, state, max_inplace),
-            };
+            }
         }
         values.pop().unwrap()
     }
 
+    #[must_use]
     fn dice(d: usize) -> Self {
         Self { parts: vec![Part::Dice(d)] }
     }
 
+    #[must_use]
     fn constant(n: isize) -> Self {
         Self { parts: vec![Part::Const(n)] }
     }
@@ -343,6 +345,7 @@ impl DiceFormula {
     /// let exact_dist: DenseDist<BigRational> = expr.dist();
     /// assert_eq!(exact_dist.mean().to_string(), "55/4");
     /// ```
+    #[must_use]
     pub fn dist<T, D: Dist<T>>(&self) -> D
     where
         for<'b> T: Num
@@ -379,9 +382,10 @@ impl DiceFormula {
 
     pub fn negate_inplace(&mut self) {
         let orig_len = self.parts.len();
-        self.parts.push(Part::Negate(orig_len - 1))
+        self.parts.push(Part::Negate(orig_len - 1));
     }
 
+    #[must_use]
     pub fn negate(mut self) -> Self {
         self.negate_inplace();
         self
@@ -402,6 +406,7 @@ impl DiceFormula {
         self.parts.push(Part::Min(a, b));
     }
 
+    #[must_use]
     pub fn min(mut self, other: &DiceFormula) -> Self {
         self.min_assign(other);
         self
@@ -412,6 +417,7 @@ impl DiceFormula {
         self.parts.push(Part::Max(a, b));
     }
 
+    #[must_use]
     pub fn max(mut self, other: &DiceFormula) -> Self {
         self.max_assign(other);
         self
@@ -422,6 +428,7 @@ impl DiceFormula {
         self.parts.push(Part::MultiAdd(a, b));
     }
 
+    #[must_use]
     pub fn multi_add(mut self, other: &DiceFormula) -> Self {
         self.multi_add_assign(other);
         self

@@ -24,7 +24,7 @@ impl Evaluator<(String, usize)> for StringEvaluator {
     const CUSTOM_MULTI_ADD: bool = true;
 
     fn dice(&mut self, d: usize) -> (String, usize) {
-        (format!("d{}", d), 8)
+        (format!("d{d}"), 8)
     }
 
     fn multi_add_inplace(&mut self, (a, aa): &mut (String, usize), (b, bb): &(String, usize)) {
@@ -38,7 +38,7 @@ impl Evaluator<(String, usize)> for StringEvaluator {
     }
 
     fn constant(&mut self, n: isize) -> (String, usize) {
-        (format!("{}", n), 7)
+        (format!("{n}"), 7)
     }
 
     fn negate_inplace(&mut self, (a, aa): &mut (String, usize)) {

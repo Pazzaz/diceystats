@@ -147,8 +147,8 @@ where
         let a_len = a.values.len();
         let b_len = b.values.len();
         let mut out = HashMap::with_capacity(a_len + b_len);
-        for (&a_k, a_v) in a.values.iter() {
-            for (&b_k, b_v) in b.values.iter() {
+        for (&a_k, a_v) in &a.values {
+            for (&b_k, b_v) in &b.values {
                 let entry = out.entry(a_k + b_k).or_insert(T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
@@ -162,8 +162,8 @@ where
         let a_len = a.values.len();
         let b_len = b.values.len();
         let mut out = HashMap::with_capacity(a_len * b_len);
-        for (&a_k, a_v) in a.values.iter() {
-            for (&b_k, b_v) in b.values.iter() {
+        for (&a_k, a_v) in &a.values {
+            for (&b_k, b_v) in &b.values {
                 let entry = out.entry(a_k * b_k).or_insert(T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;
@@ -177,8 +177,8 @@ where
         let a_len = a.values.len();
         let b_len = b.values.len();
         let mut out = HashMap::with_capacity(a_len + b_len);
-        for (&a_k, a_v) in a.values.iter() {
-            for (&b_k, b_v) in b.values.iter() {
+        for (&a_k, a_v) in &a.values {
+            for (&b_k, b_v) in &b.values {
                 let entry = out.entry(a_k - b_k).or_insert(T::zero());
                 let mut tmp = a_v.clone();
                 tmp *= b_v;

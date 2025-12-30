@@ -36,7 +36,7 @@
 //! ```
 //!
 //! There are multiple ways to represent distributions which are useful in
-//! different situations, e.g. [SparseDist](dist::SparseDist) will attempt to
+//! different situations, e.g. [`SparseDist`](dist::SparseDist) will attempt to
 //! only store non-zero values in the distribution's support.
 //!
 //! ```
